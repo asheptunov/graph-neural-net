@@ -104,6 +104,22 @@ public class NeuralNet {
 	}
 
 	/**
+	 * Calculates and returns a loss vector for a given input set by forward propagating the input, comparing it to the
+	 * provided expected output and applying the given loss function per output component. Assumes input list is non-null
+	 * and has same dimension as the net's input dimension. Assumes the actual list is non-null and has the same dimension
+	 * as the net's output dimension. Assumes the loss function is non-null.
+	 *
+	 * @param input    a single element of input / training data
+	 * @param expected the expected output to calculate loss against
+	 * @param loss     the loss function to compute loss with
+	 * @return the loss vector for the output
+	 */
+	public List<Double> calculateLoss(List<Double> input, List<Double> expected, LossFunction loss) {
+		// TODO
+		return null;
+	}
+
+	/**
 	 * Checks the representation invariant
 	 */
 	private void checkRep() {
