@@ -40,8 +40,7 @@ public class NeuralNet {
 		if (i == 1) appendLayer(outputDim);
 
 		assert depth == layers.size(); // should have as many layers as depth by contract
-		assert layers.get(0).size() == inputDim && layers.get(depth - 1).size() == outputDim; // first layer should
-		// match input dimension, last layer should match output dimension
+		checkRep();
 	}
 
 	/**
@@ -68,12 +67,13 @@ public class NeuralNet {
 				}
 			}
 		}
+		checkRep();
 	}
 
 	/**
-	 * Propagates the input list down the layers of the neural net, applying edge weighting and smoothing functions
-	 * accordingly. Input list dimension is assumed to match the input dimension of the neural net. Returns the calculated
-	 * output list of the neural net, which will match the output dimension of the net.
+	 * Propagates the input list down the layers of the neural net, setting neuron values to those calculated from edge
+	 * weights and smoothing functions. Input list dimension is assumed to match the input dimension of the neural net.
+	 * Returns the calculated output list of the neural net, which will match the output dimension of the net.
 	 *
 	 * @param input the input list to propagate
 	 * @return the output list
