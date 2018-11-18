@@ -115,8 +115,15 @@ public class NeuralNet {
 	 * @return the loss vector for the output
 	 */
 	public List<Double> calculateLoss(List<Double> input, List<Double> expected, LossFunction loss) {
-		// TODO
-		return null;
+		assert input.size() == inputDim;
+		assert expected.size() == outputDim;
+		assert loss != null;
+		List<Double> output = propagate(input);
+		for (int i = 0; i < output.size(); i++) {
+			output.set(i, loss.loss(output.get(i), expected.get(i)));
+		}
+		checkRep();
+		return output;
 	}
 
 	/**
