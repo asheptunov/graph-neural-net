@@ -6,30 +6,37 @@ public class NeuralNet {
 	private Random random;
 	private int inputDim, outputDim;
 	private Sigmoid sigmoid;
+	private SigmoidPrime sigmoidPrime;
 
 	/**
 	 * Constructs a new neural net with some input and output dimensions, as well as some depth (layer count). A depth
 	 * 1 neural net will perform no modifications on input and output data, and is assumed to have equal input and output
 	 * dimensions. All edges will have random edge weights ranging from 0.0-1.0, and all neurons will have data set to 0.0.
 	 * Depth, input dimension, and output dimension are assumed to be greater than zero. Sets the function to use
-	 * during forward propagation to the specified sigmoid. Sigmoid function is assumed to be non-null.
+	 * during forward propagation to the specified sigmoid, and the sets its derivative to sigmoid prime for use during
+	 * back propagation of error. Sigmoid and sigmoid derivative functions are assumed to be non-null, sigmoid is assumed
+	 * to represent a continuous and differentiable sigmoid function, and sigmoid prime is assumed to properly express
+	 * the derivative of the given sigmoid function.
 	 *
 	 * @param inputDim the dimension of input data
 	 * @param outputDim the dimension of output data
 	 * @param depth the depth of the net
 	 * @param sig the sigmoid function to apply during propagation
+	 * @param sigPrime the derivative of the sigmoid function to apply during back propagation
 	 */
-	public NeuralNet(int inputDim, int outputDim, int depth, Sigmoid sig) {
+	public NeuralNet(int inputDim, int outputDim, int depth, Sigmoid sig, SigmoidPrime sigPrime) {
 		assert depth > 0;
 		assert inputDim > 0;
 		assert outputDim > 0;
 		assert (depth != 1) || (inputDim == outputDim); // equiv to (depth == 1) -> (inputDim == outputDim)
 		assert sig != null;
+		assert sigPrime != null;
 		this.inputDim = inputDim;
 		this.outputDim = outputDim;
 		layers = new ArrayList<>();
 		random = new Random(1);
 		this.sigmoid = sig;
+		this.sigmoidPrime = sigPrime;
 
 		int i = depth;
 		appendLayer(inputDim);
@@ -104,26 +111,68 @@ public class NeuralNet {
 	}
 
 	/**
-	 * Calculates and returns a loss vector for a given input set by forward propagating the input, comparing it to the
-	 * provided expected output and applying the given loss function per output component. Assumes input list is non-null
-	 * and has same dimension as the net's input dimension. Assumes the actual list is non-null and has the same dimension
-	 * as the net's output dimension. Assumes the loss function is non-null.
+	 * Calculates and returns a loss for a given input set by forward propagating the input, comparing it to the
+	 * provided expected output and applying the given loss function per output component, and then aggregating the
+	 * components.
+	 * Assumes input list is non-null and has same dimension as the net's input dimension. Assumes the actual list is
+	 * non-null and has the same dimension as the net's output dimension. Assumes the loss function is non-null.
 	 *
 	 * @param input    a single element of input / training data
 	 * @param expected the expected output to calculate loss against
 	 * @param loss     the loss function to compute loss with
 	 * @return the loss vector for the output
 	 */
-	public List<Double> calculateLoss(List<Double> input, List<Double> expected, LossFunction loss) {
+	public double calculateLoss(List<Double> input, List<Double> expected, LossFunction loss) {
 		assert input.size() == inputDim;
 		assert expected.size() == outputDim;
 		assert loss != null;
-		List<Double> output = propagate(input);
-		for (int i = 0; i < output.size(); i++) {
-			output.set(i, loss.loss(output.get(i), expected.get(i)));
+		List<Double> calculated = propagate(input);
+		double output = 0;
+		for (int i = 0; i < calculated.size(); i++) {
+			output += loss.loss(calculated.get(i), expected.get(i));
 		}
 		checkRep();
 		return output;
+	}
+
+	/**
+	 * Calculates and returns a gradient representing dL/dw, or the gradient of the loss (error) with respect to all the
+	 * weights in the net. This works by first propagating the input through the net, calculating the loss from it using
+	 * the given loss function, and then applying a propagation algorithm using the neural net's sigmoid prime function
+	 * and the given loss prime function. The list at output.size() will be one less than the number of layers in this
+	 * net; output.get(n) will represent the dL/dw for each weight between layer n and layer n+1; output.get(n)[i] will
+	 * represent all the weights starting at neuron i in layer n; output.get(n)[i][j] will represent the weight from the
+	 * ith neuron in layer n to the jth weight in layer n+1.
+	 * Loss function and loss function derivative are assumed to be non-null, and loss function is assumed to be
+	 * continuous and differentiable. Input and expected lists are expected be non-null; input list should match the input
+	 * dimension for the neural net; expected list should match the output dimension of the net.
+	 *
+	 * @param input         a single element of input / training data
+	 * @param expected      the expected output to calculate loss against
+	 * @param lossFunction  the loss function to compute loss with
+	 * @param lossFuncPrime the derivative of the loss function
+	 * @return the list of error gradients with respect to weights
+	 */
+	public List<double[][]> calculateWeightGradient(List<Double> input, List<Double> expected,
+	                                                  LossFunction lossFunction, LossFunctionPrime lossFuncPrime) {
+		List<double[][]> weightLayers = new ArrayList<>(layers.size() - 1);
+		double loss = calculateLoss(input, expected, lossFunction); // propagates input, calculates loss
+		for (int l = 1; l < layers.size(); l++) { // start at 1 because layer 0 is inputs, they have no parents
+			List<Node<Double, Double>> layer = layers.get(l);
+			double[][] gradMatrix = new double[layers.get(l - 1).size()][layers.get(l).size()];
+			weightLayers.add(gradMatrix);
+			for (int i = 0; i < layer.size(); i++) {
+				Node<Double, Double> child = layer.get(i);
+				Set<Node<Double, Double>> parents = child.parents();
+				for (int j = 0; i < parents.size(); j++) {
+					// oh shit, parents is a set
+				}
+			}
+		}
+
+
+		checkRep();
+		return null; // TODO
 	}
 
 	/**

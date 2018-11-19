@@ -5,5 +5,5 @@ public interface Sigmoid {
 	 * @param a the input
 	 * @return the calculated value
 	 */
-	public Double func(Double a);
+	public Double func(double a);
 }
