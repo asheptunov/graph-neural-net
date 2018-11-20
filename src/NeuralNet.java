@@ -228,13 +228,40 @@ public class NeuralNet {
 		assert expected != null;
 		assert input.length == inputDim;
 		assert expected.length == outputDim;
-		List<double[][]> wGradient = new ArrayList<>(weights.size());
-		double loss = calculateLoss(input, expected); // propagates input, calculates loss
+		if (depth < 2) {
+			return new ArrayList<>(); // no weights to adjust, return empty list
+		}
+		List<double[][]> dEdw = new ArrayList<>(weights.size());
+		List<double[]> dEdNet = new ArrayList<>(depth);
+		double[][] last_dEdw = new double[activations.get(depth - 2).length][outputDim];
+		double[] last_dEdNet = new double[outputDim];
+		dEdw.set(weights.size() - 1, last_dEdw);
+		dEdNet.set(depth - 1, last_dEdNet);
+
+		double[] jLayer = activations.get(depth - 1); // last layer
+		double[] iLayer = activations.get(depth - 2);
+		// w_ij now conceptually points from second-to-last layer to last layer
+		for (int j = 0; j < outputDim; j++) {
+			double oj = jLayer[j];
+			last_dEdNet[j] = (oj - expected[i]) * oj * (1 - oj);
+		}
+		// doing this nested loop independent of the j loop eliminates costly column-major mem access
+		for (int i = 0; i < iLayer.length; i++) {
+			double oi = iLayer[i];
+			for (int j = 0; j < jLayer.length; j++) {
+				last_dEdw[i][j] = last_dEdNet[j] * oi;
+			}
+		}
+
 
 		// TODO
 
 		checkRep();
 		return wGradient;
+	}
+
+	private void backPropagate(List<double[][]> dEdw, List<double[]> dEdNet) {
+
 	}
 
 	/**
