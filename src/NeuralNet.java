@@ -235,7 +235,8 @@ public class NeuralNet {
 		List<double[]> dEdNet = new ArrayList<>(depth);
 		double[][] last_dEdw = new double[activations.get(depth - 2).length][outputDim];
 		double[] last_dEdNet = new double[outputDim];
-		dEdw.set(weights.size() - 1, last_dEdw);
+		assert weights.size() == depth - 1;
+		dEdw.set(depth - 2, last_dEdw);
 		dEdNet.set(depth - 1, last_dEdNet);
 
 		double[] jLayer = activations.get(depth - 1); // last layer
@@ -243,7 +244,7 @@ public class NeuralNet {
 		// w_ij now conceptually points from second-to-last layer to last layer
 		for (int j = 0; j < outputDim; j++) {
 			double oj = jLayer[j];
-			last_dEdNet[j] = (oj - expected[i]) * oj * (1 - oj);
+			last_dEdNet[j] = (oj - expected[j]) * oj * (1 - oj);
 		}
 		// doing this nested loop independent of the j loop eliminates costly column-major mem access
 		for (int i = 0; i < iLayer.length; i++) {
@@ -253,15 +254,36 @@ public class NeuralNet {
 			}
 		}
 
-
-		// TODO
+		// back prop
+		int i, j;
+		for (j = depth - 2; j >= 1; j--) { // perform for all inner, right hand layers
+			i = j - 1;
+			double[][] current_dEdw = new double[activations.get(i).length][activations.get(j).length];
+			double[] current_dEdNet = new double[activations.get(j).length];
+			dEdw.set(i, current_dEdw);
+			dEdNet.set(j, current_dEdNet);
+			jLayer = activations.get(j);
+			iLayer = activations.get(i);
+			double[][] next_weights = weights.get(j);
+			double[] next_dEdNet = dEdNet.get(j + 1);
+			for (int iJ = 0; iJ < jLayer.length; iJ++) { // calculate stage of recursive derivative term
+				double[] wOutOfJ = next_weights[iJ];
+				int sum = 0;
+				for (int iNext = 0; iNext < next_dEdNet.length; iNext++) {
+					sum += next_weights[iJ][iNext] * next_dEdNet[iNext];
+				}
+				double oj = jLayer[iJ];
+				current_dEdNet[iJ] = sum * oj * (1 - oj);
+			}
+			for (int iI = 0; iI < iLayer.length; iI++) { // calculate weight derivative
+				for (int iJ = 0; iJ < jLayer.length; iJ++) {
+					current_dEdw[iI][iJ] = current_dEdNet[j] * iLayer[iI];
+				}
+			}
+		}
 
 		checkRep();
-		return wGradient;
-	}
-
-	private void backPropagate(List<double[][]> dEdw, List<double[]> dEdNet) {
-
+		return dEdw;
 	}
 
 	/**
