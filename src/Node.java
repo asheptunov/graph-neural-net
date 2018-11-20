@@ -6,6 +6,9 @@ import java.util.*;
  *
  * @param <E> the type stored by the node
  * @param <T> the type for edge labels
+ *
+ * @author Andriy Sheptunov
+ * @since November 2018
  */
 public class Node<E, T> {
 	private E data; // data in the node

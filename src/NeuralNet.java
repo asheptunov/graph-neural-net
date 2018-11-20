@@ -1,5 +1,12 @@
 import java.util.*;
 
+/**
+ * Represents a neural network with sigmoid neurons, capable of propagating input, back propagating error, and performing
+ * batch gradient descent to train the network.
+ *
+ * @author Andriy Sheptunov
+ * @since November 2018
+ */
 public class NeuralNet {
 	// structure
 	private int depth; // # of neuron layers
@@ -15,7 +22,10 @@ public class NeuralNet {
 	private LossFunction lossFunc;
 	private LossFunctionPrime lossPrime;
 
+	// whether or not to run heavy rep inv checks
 	private boolean debug = true;
+	// whether or not to run rep inv checks at all
+	private boolean light = false;
 
 	// Abstraction function:
 	// A NeuralNet represents the ADT of a neural network with depth # of layers and a depth - 1 # of weight layers.
@@ -382,7 +392,7 @@ public class NeuralNet {
 	/**
 	 * Returns the sigmoid derivative function of the neural net.
 	 *
-	 * @return the sidmoid derivative function
+	 * @return the sigmoid derivative function
 	 */
 	public SigmoidPrime getSigmoidPrime() {
 		return sigmoidPrime;
@@ -410,6 +420,9 @@ public class NeuralNet {
 	 * Checks the representation invariant
 	 */
 	private void checkRep() {
+		if (light) {
+			return;
+		}
 		assert depth > 0 && inputDim > 0 && outputDim > 0 && hiddenLayerDim > 0;
 		assert activations != null && weights != null;
 		assert random != null && sigmoidFunc != null && sigmoidPrime != null && lossFunc != null && lossPrime != null;

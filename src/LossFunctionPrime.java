@@ -1,3 +1,6 @@
+/**
+ * Represents a continuous derivative of a loss (error) function.
+ */
 public interface LossFunctionPrime {
 	/**
 	 * Computes and returns the first derivative of the loss for a given output component by performing an operation involving
