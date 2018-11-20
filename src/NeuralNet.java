@@ -1,52 +1,126 @@
 import java.util.*;
 
 public class NeuralNet {
-	private List<List<Node<Double, Double>>> layers; // index 0 layer is first layer, subsequent layers are index ordered
-	private static final int HIDDEN_LAYER_DEPTH = 16;
+	// new structure
+	private int depth; // # of neuron layers
+	private int inputDim, outputDim; // # of neurons in input and output layer, respectively
+	private int hiddenLayerDim; // # of neurons in arbitrary hidden layer
+	private List<double[]> activations;
+	private List<double[][]> weights;
+
+	// functions for math
 	private Random random;
-	private int inputDim, outputDim;
-	private Sigmoid sigmoid;
+	private Sigmoid sigmoidFunc;
 	private SigmoidPrime sigmoidPrime;
+	private LossFunction lossFunc;
+	private LossFunctionPrime lossPrime;
+
+	// Abstraction function:
+	// A NeuralNet represents the ADT of a neural network with depth # of layers and a depth - 1 # of weight layers.
+	// These correspond to the lengths of arrays activations and weights, respectively. The net has an input
+	// dimension of inputDim, and an output dimension of outputDim. These correspond to the lengths of the first
+	// and last elements in array activations, respectively.
+	// Array activations[i] refers to the vector of neuron activations in layer i.
+	// Value activations[i][j] refers to the value of the jth neuron in layer i.
+	// Matrix weights[i] refers to the matrix of all edge weights between the ith and i+1th activation layers.
+	// Array weights[i][j] refers to the vector of edge weights originating from the jth neuron in the ith activation layer.
+	// Value weights[i][j][k] refers to the value of the edge weight from the jth neuron in the ith activation layer
+	// to the kth neuron in the i+1th activation layer.
+	//
+	// Examples:
+	// A depth 1 neural net will have matching inputDim and outputDim, have a single element in activations, and an
+	// empty weights array. It will have no hidden layers.
+	// A depth 2 neural net will have 2 elements in activations, and 1 element in weights. It will have no hidden layers.
+	// A depth 3 neural net will have 3 elements in activations, and 2 elements in weights. It will have 1 hidden layer
+	// of dimension hiddenLayerDim.
+
+	// Representation invariant:
+	// depth, inputDim, outputDim, hiddenLayerDim > 0
+	// activations, weights, random, sigmoidFunc, sigmoidPrime, lossFunc, lossPrime != null
+	// activations[...], weights[...], weights[...][...] != null
+	// activations.length == depth
+	// weights.length == depth - 1
+	// activations[0].length == inputDim
+	// activations[depth - 1].length == outputDim
+	// weights[i].length == activations[i].length
+	// weights[i][j].length == activations[i + 1].length
+	// depth > 2 -> activations[1...(depth - 2)].length == hiddenLayerDim
+
+	// Graphic:
+	//
+	//     a_1          w_1,1       b_1                 z_1
+	//                  w_1,2
+	//                  ...
+	//                  w_1,hld
+	//     a_2          w_2,1       b_2                 z_2
+	//                  w_2,2
+	//                  ...
+	//                  w_2,hld                 .
+	//     ...          w_?,1       ...         .       ...
+	//                  w_?,2                   .
+	//                  ...
+	//                  w_?,hld
+	//  a_inputDim      w_id,1      b_hld           z_outputDim
+	//                  w_id,2
+	//                  ...
+	//                  w_id,hld
+	//
+	//      ^              ^         ^                   ^
+	// activations[0] weights[0] activations[1]   activations[depth-1]
+	//
 
 	/**
-	 * Constructs a new neural net with some input and output dimensions, as well as some depth (layer count). A depth
-	 * 1 neural net will perform no modifications on input and output data, and is assumed to have equal input and output
-	 * dimensions. All edges will have random edge weights ranging from 0.0-1.0, and all neurons will have data set to 0.0.
-	 * Depth, input dimension, and output dimension are assumed to be greater than zero. Sets the function to use
-	 * during forward propagation to the specified sigmoid, and the sets its derivative to sigmoid prime for use during
-	 * back propagation of error. Sigmoid and sigmoid derivative functions are assumed to be non-null, sigmoid is assumed
-	 * to represent a continuous and differentiable sigmoid function, and sigmoid prime is assumed to properly express
-	 * the derivative of the given sigmoid function.
+	 * Constructs a new neural net with some input, output, and hidden layer dimensions, as well as some depth (layer
+	 * count). A depth 1 neural net will perform no modifications on input and output data, and is assumed to have equal
+	 * input and output dimensions. All edges will have random edge weights ranging from 0.0-1.0, and all neurons will
+	 * have data set to 0.0. If hidden layers exist, all will have the same specified dimension. All layers that aren't
+	 * the input or output layer will be hidden layers. Sets the function to use during forward propagation to the
+	 * specified sigmoid, and the sets its derivative to sigmoid prime for use during back propagation of error. Does the
+	 * same for a given loss function and its derivative, which will be used during error calculation and back propagation,
+	 * respectively.
+	 * Depth, input dimension, and output dimension are assumed to be greater than zero.
+	 * Sigmoid and sigmoid derivative functions are assumed to be non-null, sigmoid is assumed to represent a continuous
+	 * and differentiable sigmoid function, and sigmoid prime is assumed to correctly express the derivative of the given
+	 * sigmoid function. The same criteria are assumed for the given loss function.
 	 *
 	 * @param inputDim the dimension of input data
 	 * @param outputDim the dimension of output data
+	 * @param hiddenLayerDim the dimension of an arbitrary hidden layer
 	 * @param depth the depth of the net
 	 * @param sig the sigmoid function to apply during propagation
 	 * @param sigPrime the derivative of the sigmoid function to apply during back propagation
+	 * @param loss the loss function to apply during error evaluation
+	 * @param lossPrime the derivative of the loss function to apply during back propagation
 	 */
-	public NeuralNet(int inputDim, int outputDim, int depth, Sigmoid sig, SigmoidPrime sigPrime) {
-		assert depth > 0;
-		assert inputDim > 0;
-		assert outputDim > 0;
+	public NeuralNet(int inputDim, int outputDim, int hiddenLayerDim, int depth,
+	                 Sigmoid sig, SigmoidPrime sigPrime, LossFunction loss, LossFunctionPrime lossPrime) {
+		assert depth > 0 && inputDim > 0 && outputDim > 0 && hiddenLayerDim > 0; // ge checks
 		assert (depth != 1) || (inputDim == outputDim); // equiv to (depth == 1) -> (inputDim == outputDim)
-		assert sig != null;
-		assert sigPrime != null;
+		assert sig != null && sigPrime != null && loss != null && lossPrime != null; // non-null checks
+
+		// structure init
 		this.inputDim = inputDim;
 		this.outputDim = outputDim;
-		layers = new ArrayList<>();
-		random = new Random(1);
-		this.sigmoid = sig;
-		this.sigmoidPrime = sigPrime;
+		this.hiddenLayerDim = hiddenLayerDim;
+		this.depth = depth;
+		activations = new ArrayList<>();
+		weights = new ArrayList<>();
 
-		int i = depth;
+		// build
 		appendLayer(inputDim);
-		i--;
-		while (i-- > 1) {
-			appendLayer(HIDDEN_LAYER_DEPTH); // add hidden layers
+		int i; // need i outside of for scope
+		for (i = depth; i > 1; i--) {
+			appendLayer(hiddenLayerDim);
 		}
 		if (i == 1) appendLayer(outputDim);
 
-		assert depth == layers.size(); // should have as many layers as depth by contract
+		// function init
+		random = new Random(1);
+		this.sigmoidFunc = sig;
+		this.sigmoidPrime = sigPrime;
+		this.lossFunc = loss;
+		this.lossPrime = lossPrime;
+
 		checkRep();
 	}
 
@@ -60,54 +134,67 @@ public class NeuralNet {
 	 */
 	private void appendLayer(int dim) {
 		assert dim > 0;
-		List<Node<Double, Double>> newLayer = new ArrayList<>();
-		for (int i = dim; i >= 0; i++) { // add dim # of nodes to layer
-			newLayer.add(new Node<>(0.0));
-		}
-		layers.add(newLayer); // append the layer
-		if (layers.size() > 1) { // perform linking to previous layer
-			for (Node<Double, Double> parent : layers.get(layers.size() - 2)) { // all nodes in parent layer
-				for (Node<Double, Double> child : layers.get(layers.size() - 1)) { // all nodes in child layer
-					double edgeWeight = random.nextDouble();
-					parent.addChild(child, edgeWeight); // register both parent and child with each other; connect
-					child.addParent(parent, edgeWeight);
+
+		double[] newNeurons = new double[dim]; // all values automatically 0.0
+		if (!activations.isEmpty()) { // we are adding a hidden layer or output layer; add weights
+			double[][] newWeights = new double[activations.get(activations.size() - 1).length][dim];
+			for (int i = 0; i < newWeights.length; i++) {
+				for (int j = 0; j < dim; j++) {
+					newWeights[i][j] = random.nextDouble();
 				}
 			}
+			weights.add(newWeights);
 		}
+		activations.add(newNeurons);
 		checkRep();
 	}
 
 	/**
-	 * Propagates the input list down the layers of the neural net, setting neuron values to those calculated from edge
-	 * weights and smoothing functions. Input list dimension is assumed to match the input dimension of the neural net.
-	 * Returns the calculated output list of the neural net, which will match the output dimension of the net.
+	 * Propagates the input vector down the layers of the neural net, setting neuron values to those calculated from edge
+	 * weights and smoothing functions. Input vector dimension is assumed to match the input dimension of the neural net.
+	 * Returns this net.
 	 *
-	 * @param input the input list to propagate
-	 * @return the output list
+	 * @param input the input vector to propagate
+	 * @return this net
 	 */
-	public List<Double> propagate(List<Double> input) {
-		assert input.size() == inputDim;
-		List<Node<Double, Double>> layer0 = layers.get(0);
-		for (int i = 0; i < inputDim; i++) { // assign first layer to input array
-			layer0.get(i).setData(input.get(i));
-		}
-		for (int i = 1; i < layers.size(); i++) {
-			List<Node<Double, Double>> layer = layers.get(i); // current layer
-			for (Node<Double, Double> child : layer) {
-				double result = 0;
-				for (Node<Double, Double> parent : child.parents()) { // dot all parents to a child with corresponding edge weights
-					result += parent.data() * child.edgeToParent(parent);
+	public NeuralNet propagate(double[] input) {
+		assert input.length == inputDim;
+		System.arraycopy(input, 0, layer0, 0, layer0.length); // assign input layer
+		for (int l = 1; l < depth; i++) { // traverse through output layer multiplying layer vector by weights matrix
+			double[] pActivations = activations.get(l - 1); // l-1th layer activations (previous)
+			double[] lActivations = activations.get(l); // lth layer activations (current)
+			double[][] lWeights = weights.get(l - 1); // weights between l-1th layer (previous) and lth layer (current)
+			assert lWeights.length == pActivations.length;
+			assert lWeights[0].length == lActivations.length;
+			for (int i = 0; i < lActivations.length; i++) {
+				lActivations[i] = 0.0; // reset all values
+			}
+			for (int i = 0; i < pActivations.length; i++) {
+				for (int j = 0; j < lActivations.length; j++) {
+					// propagates one value from previous layer into all values from next layer
+					lActivations[j] += (pActivations[i] * lWeights[i][j]);
 				}
-				child.setData(sigmoid.func(result)); // apply sigmoid to matrix product
+			}
+			for (int i = 0; i < lActivations.length; i++) {
+				lActivations[i] = sigmoidFunc.func(lActivations[i]); // apply sigmoid to all values
 			}
 		}
-		List<Double> result = new ArrayList<>();
-		for (Node<Double, Double> node : layers.get(layers.size() - 1)) {
-			result.add(node.data());
-		}
-		assert result.size() == outputDim;
 		checkRep();
-		return result;
+		return this;
+	}
+
+	/**
+	 * Returns the number of layers in the neural net, composed of 1 input layer, 0-1 output layers, and any non-negative
+	 * number of hidden layers.
+	 *
+	 * @return
+	 */
+	public int depth() {
+		return depth;
+	}
+
+	public int getOutput() {
+		return 0; // TODO
 	}
 
 	/**
