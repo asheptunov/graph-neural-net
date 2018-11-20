@@ -287,6 +287,50 @@ public class NeuralNet {
 	}
 
 	/**
+	 * Performs a single step of normalized gradient descent by using the given batch of input vectors mapped to expected
+	 * (training) output vectors, aggregating their weight gradients calculated through back propagation, and adjusting
+	 * all weights proportional to the given step size.
+	 * Input vectors in the batch are all assumed to match the input dimension of the net. Expected output vectors are
+	 * assumed to match output dimensions of the net. Batch is assumed to be non-null and non-empty.
+	 * Step is assumed to be positive.
+	 *
+	 * @param batch a map of input vectors to their expected output vectors
+	 * @param step  the multiplier for weight adjustments; large values will perform coarser gradient descent
+	 */
+	public void gradientStep(Map<double[], double[]> batch, double step) {
+		int batchSize = batch.size();
+		List<double[][]> gradientAggregate = new ArrayList<>();
+		for (double[] input : batch.keySet()) {
+			double[] expected = batch.get(input);
+			List<double[][]> gradient = calculateWeightGradient(input, expected);
+			if (gradientAggregate.isEmpty()) {
+				gradientAggregate = gradient;
+			} else {
+				for (int i = 0; i < gradientAggregate.size(); i++) {
+					double[][] aggregate = gradientAggregate.get(i);
+					double[][] single = gradient.get(i);
+					for (int j = 0; j < aggregate.length; j++) {
+						for (int k = 0; k < aggregate[0].length; k++) {
+							aggregate[j][k] += single[j][k];
+						}
+					}
+				}
+			}
+		}
+		// adjust
+		for (int i = 0; i < gradientAggregate.size(); i++) {
+			double[][] toAdjust = weights.get(i);
+			double[][] adjustBy = gradientAggregate.get(i);
+			for (int j = 0; j < adjustBy.length; j++) {
+				for (int k = 0; k < adjustBy[0].length; k++) {
+					toAdjust[i][j] -= (step * adjustBy[i][j] / batchSize); // normalize by batch size, scale by step
+				}
+			}
+
+		}
+	}
+
+	/**
 	 * Returns the depth of the neural net.
 	 *
 	 * @return the depth
