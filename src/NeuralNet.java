@@ -152,15 +152,15 @@ public class NeuralNet {
 	/**
 	 * Propagates the input vector down the layers of the neural net, setting neuron values to those calculated from edge
 	 * weights and smoothing functions. Input vector dimension is assumed to match the input dimension of the neural net.
-	 * Returns this net.
+	 * Returns the output vector after propagation.
 	 *
 	 * @param input the input vector to propagate
-	 * @return this net
+	 * @return the output vector
 	 */
-	public NeuralNet propagate(double[] input) {
+	public double[] propagate(double[] input) {
 		assert input.length == inputDim;
-		System.arraycopy(input, 0, layer0, 0, layer0.length); // assign input layer
-		for (int l = 1; l < depth; i++) { // traverse through output layer multiplying layer vector by weights matrix
+		System.arraycopy(input, 0, activations.get(0), 0, inputDim); // copy into first layer
+		for (int l = 1; l < depth; l++) { // traverse through output layer multiplying layer vector by weights matrix
 			double[] pActivations = activations.get(l - 1); // l-1th layer activations (previous)
 			double[] lActivations = activations.get(l); // lth layer activations (current)
 			double[][] lWeights = weights.get(l - 1); // weights between l-1th layer (previous) and lth layer (current)
@@ -179,44 +179,30 @@ public class NeuralNet {
 				lActivations[i] = sigmoidFunc.func(lActivations[i]); // apply sigmoid to all values
 			}
 		}
+		double[] output = new double[outputDim];
+		System.arraycopy(activations.get(depth - 1), 0, output, 0, outputDim); // copy out last layer
 		checkRep();
-		return this;
-	}
-
-	/**
-	 * Returns the number of layers in the neural net, composed of 1 input layer, 0-1 output layers, and any non-negative
-	 * number of hidden layers.
-	 *
-	 * @return
-	 */
-	public int depth() {
-		return depth;
-	}
-
-	public int getOutput() {
-		return 0; // TODO
+		return output;
 	}
 
 	/**
 	 * Calculates and returns a loss for a given input set by forward propagating the input, comparing it to the
-	 * provided expected output and applying the given loss function per output component, and then aggregating the
+	 * provided expected output and applying the net's loss function per output component, and then aggregating the
 	 * components.
 	 * Assumes input list is non-null and has same dimension as the net's input dimension. Assumes the actual list is
-	 * non-null and has the same dimension as the net's output dimension. Assumes the loss function is non-null.
+	 * non-null and has the same dimension as the net's output dimension.
 	 *
 	 * @param input    a single element of input / training data
 	 * @param expected the expected output to calculate loss against
-	 * @param loss     the loss function to compute loss with
 	 * @return the loss vector for the output
 	 */
-	public double calculateLoss(List<Double> input, List<Double> expected, LossFunction loss) {
-		assert input.size() == inputDim;
-		assert expected.size() == outputDim;
-		assert loss != null;
-		List<Double> calculated = propagate(input);
+	public double calculateLoss(double[] input, double[] expected) {
+		assert input.length == inputDim;
+		assert expected.length == outputDim;
+		double[] calculated = propagate(input);
 		double output = 0;
-		for (int i = 0; i < calculated.size(); i++) {
-			output += loss.loss(calculated.get(i), expected.get(i));
+		for (int i = 0; i < outputDim; i++) {
+			output += lossFunc.loss(calculated[i], expected[i]);
 		}
 		checkRep();
 		return output;
@@ -225,50 +211,37 @@ public class NeuralNet {
 	/**
 	 * Calculates and returns a gradient representing dL/dw, or the gradient of the loss (error) with respect to all the
 	 * weights in the net. This works by first propagating the input through the net, calculating the loss from it using
-	 * the given loss function, and then applying a propagation algorithm using the neural net's sigmoid prime function
-	 * and the given loss prime function. The list at output.size() will be one less than the number of layers in this
-	 * net; output.get(n) will represent the dL/dw for each weight between layer n and layer n+1; output.get(n)[i] will
-	 * represent all the weights starting at neuron i in layer n; output.get(n)[i][j] will represent the weight from the
-	 * ith neuron in layer n to the jth weight in layer n+1.
-	 * Loss function and loss function derivative are assumed to be non-null, and loss function is assumed to be
-	 * continuous and differentiable. Input and expected lists are expected be non-null; input list should match the input
-	 * dimension for the neural net; expected list should match the output dimension of the net.
+	 * the net's loss function, and then applying a propagation algorithm using the net's sigmoid prime function and the
+	 * net's loss prime function. Output will be of a dimension one less than the net's dimension; output.get(n) will
+	 * represent the dL/dw for each weight between layer n and layer n+1; output.get(n)[i] will represent all the weights
+	 * starting at neuron i in layer n; output.get(n)[i][j] will represent the weight from the ith neuron in layer n to
+	 * the jth weight in layer n+1.
+	 * Input and expected vectors are assumed to be non-null; input vector dimension must match the input dimension of
+	 * the net; Expected vector dimension must match the output dimension of the net.
 	 *
-	 * @param input         a single element of input / training data
-	 * @param expected      the expected output to calculate loss against
-	 * @param lossFunction  the loss function to compute loss with
-	 * @param lossFuncPrime the derivative of the loss function
-	 * @return the list of error gradients with respect to weights
+	 * @param input         a single vector of input / training data
+	 * @param expected      the expected output vector to calculate loss against
+	 * @return the matrix of error derivatives with respect to weights
 	 */
-	public List<double[][]> calculateWeightGradient(List<Double> input, List<Double> expected,
-	                                                  LossFunction lossFunction, LossFunctionPrime lossFuncPrime) {
-		List<double[][]> weightLayers = new ArrayList<>(layers.size() - 1);
-		double loss = calculateLoss(input, expected, lossFunction); // propagates input, calculates loss
-		for (int l = 1; l < layers.size(); l++) { // start at 1 because layer 0 is inputs, they have no parents
-			List<Node<Double, Double>> layer = layers.get(l);
-			double[][] gradMatrix = new double[layers.get(l - 1).size()][layers.get(l).size()];
-			weightLayers.add(gradMatrix);
-			for (int i = 0; i < layer.size(); i++) {
-				Node<Double, Double> child = layer.get(i);
-				Set<Node<Double, Double>> parents = child.parents();
-				for (int j = 0; i < parents.size(); j++) {
-					// oh shit, parents is a set
-				}
-			}
-		}
+	public List<double[][]> calculateWeightGradient(double[] input, double[] expected) {
+		assert input != null;
+		assert expected != null;
+		assert input.length == inputDim;
+		assert expected.length == outputDim;
+		List<double[][]> wGradient = new ArrayList<>(weights.size());
+		double loss = calculateLoss(input, expected); // propagates input, calculates loss
 
+		// TODO
 
 		checkRep();
-		return null; // TODO
+		return wGradient;
 	}
 
 	/**
 	 * Checks the representation invariant
 	 */
 	private void checkRep() {
-		assert !layers.isEmpty(); // no zero dimensional nets
-		assert layers.get(0).size() == inputDim; // first layer matches input dimension
-		assert layers.get(layers.size() - 1).size() == outputDim; // last layer matches output dimension
+		// TODO
 	}
 
 }
