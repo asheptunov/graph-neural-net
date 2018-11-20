@@ -1,7 +1,7 @@
 import java.util.*;
 
 public class NeuralNet {
-	// new structure
+	// structure
 	private int depth; // # of neuron layers
 	private int inputDim, outputDim; // # of neurons in input and output layer, respectively
 	private int hiddenLayerDim; // # of neurons in arbitrary hidden layer
@@ -101,7 +101,7 @@ public class NeuralNet {
 		// structure init
 		this.inputDim = inputDim;
 		this.outputDim = outputDim;
-		this.hiddenLayerDim = hiddenLayerDim;
+		this.hiddenLayerDim = (depth > 2) ? hiddenLayerDim : -1; // hidden dim is -1 if no hidden layers
 		this.depth = depth;
 		activations = new ArrayList<>();
 		weights = new ArrayList<>();
@@ -235,6 +235,78 @@ public class NeuralNet {
 
 		checkRep();
 		return wGradient;
+	}
+
+	/**
+	 * Returns the depth of the neural net.
+	 *
+	 * @return the depth
+	 */
+	public int getDepth() {
+		return depth;
+	}
+
+	/**
+	 * Returns the input dimension of the neural net.
+	 *
+	 * @return the input dimension
+	 */
+	public int getInputDim() {
+		return inputDim;
+	}
+
+	/**
+	 * Returns the output dimension of the neural net.
+	 *
+	 * @return the output dimension
+	 */
+	public int getOutputDim() {
+		return outputDim;
+	}
+
+	/**
+	 * Returns the dimension for arbitrary hidden layers in the net, or -1 if there are no hidden layers.
+	 *
+	 * @return the hidden layer dimension, or -1 if the net has no hidden layers
+	 */
+	public int getHiddenLayerDim() {
+		return hiddenLayerDim;
+	}
+
+	/**
+	 * Returns the sigmoid function of the neural net.
+	 *
+	 * @return the sigmoid function
+	 */
+	public Sigmoid getSigmoidFunc() {
+		return sigmoidFunc;
+	}
+
+	/**
+	 * Returns the sigmoid derivative function of the neural net.
+	 *
+	 * @return the sidmoid derivative function
+	 */
+	public SigmoidPrime getSigmoidPrime() {
+		return sigmoidPrime;
+	}
+
+	/**
+	 * Returns the loss function of the neural net.
+	 *
+	 * @return the loss function
+	 */
+	public LossFunction getLossFunc() {
+		return lossFunc;
+	}
+
+	/**
+	 * Returns the loss function derivative of the neural net.
+	 *
+	 * @return the loss function derivative
+	 */
+	public LossFunctionPrime getLossPrime() {
+		return lossPrime;
 	}
 
 	/**
