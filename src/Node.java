@@ -10,7 +10,7 @@ import java.util.*;
  * @author Andriy Sheptunov
  * @since November 2018
  */
-public class Node<E, T> {
+class Node<E, T> {
 	private E data; // data in the node
 	private Map<Node<E, T>, T> parents, children; // parents point to node, children are pointed to
 	// using a map to type instead of collection of type restricts edge count between two nodes to 1
