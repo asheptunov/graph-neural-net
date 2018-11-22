@@ -43,7 +43,8 @@ public class MNISTTrainer {
 		int trainingImageSamples = readInt(trainingImages);
 		assert trainingLabelSamples == trainingImageSamples;
 		int trainingImageBytes = readInt(trainingImages) * readInt(trainingImages);
-		ProgressBar pb1 = new ProgressBar(27, trainingLabelSamples);
+		assert trainingImageBytes == 784;
+		ProgressBar pb1 = new ProgressBar(15, trainingLabelSamples);
 		for (int i = 0; i < trainingLabelSamples; i++) {
 			trainingPartition.put(readImage(trainingImages, trainingImageBytes), readLabel(trainingLabels));
 			pb1.step();
@@ -58,7 +59,7 @@ public class MNISTTrainer {
 		assert testLabelSamples == testImageSamples;
 		int testImageBytes = readInt(testImages) * readInt(testImages);
 		assert trainingImageBytes == testImageBytes; // ensure same dim as training database
-		ProgressBar pb2 = new ProgressBar(13, testImageSamples);
+		ProgressBar pb2 = new ProgressBar(10, testImageSamples);
 		for (int i = 0; i < testImageSamples; i++) {
 			testingPartition.put(readImage(testImages, testImageBytes), readLabel(testLabels));
 			pb2.step();
@@ -69,10 +70,10 @@ public class MNISTTrainer {
 //		PrintStream observer = new PrintStream(new File("obs/observer" + System.nanoTime() % 9999 + ".txt"));
 
 		// initialize network
-		NeuralNet net = new NeuralNet(trainingImageBytes, 10, hiddenLayerDim, 2+hiddenLayerCount,
+		NeuralNet net = new NeuralNet(trainingImageBytes, 10, hiddenLayerDim, 2 + hiddenLayerCount,
 				a -> 1.0 / (1 + Math.exp(-a)), // logistic sigmoid
-				a-> (1.0 / (1 + Math.exp(-a)))*(1-(1.0 / (1 + Math.exp(-a)))), // sigmoid prime
-				(c, e) -> 0.5*Math.pow(e - c, 2), // weighted difference of squares loss
+				a -> (1.0 / (1 + Math.exp(-a))) * (1 - (1.0 / (1 + Math.exp(-a)))), // sigmoid prime
+				(c, e) -> 0.5 * Math.pow(e - c, 2), // weighted difference of squares loss
 				(c, e) -> (c - e)); // loss prime
 		trainer = new NeuralNetTrainer(trainingPartition, net, System.out);
 	}

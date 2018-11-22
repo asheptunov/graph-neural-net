@@ -110,6 +110,13 @@ public class NeuralNet {
 		assert (depth != 1) || (inputDim == outputDim); // equiv to (depth == 1) -> (inputDim == outputDim)
 		assert sig != null && sigPrime != null && loss != null && lossPrime != null; // non-null checks
 
+		// function init
+		random = new Random(1);
+		this.sigmoidFunc = sig;
+		this.sigmoidPrime = sigPrime;
+		this.lossFunc = loss;
+		this.lossPrime = lossPrime;
+
 		// structure init
 		this.inputDim = inputDim;
 		this.outputDim = outputDim;
@@ -119,19 +126,13 @@ public class NeuralNet {
 		weights = new ArrayList<>();
 
 		// build
-		appendLayer(inputDim);
+		appendLayer(inputDim); // layer # 0
 		int i; // need i outside of for scope
-		for (i = depth; i > 1; i--) {
+		for (i = depth - 1; i > 1; i--) {
 			appendLayer(hiddenLayerDim);
 		}
-		if (i == 1) appendLayer(outputDim);
+		if (i == 1) appendLayer(outputDim); // layer # depth - 1
 
-		// function init
-		random = new Random(1);
-		this.sigmoidFunc = sig;
-		this.sigmoidPrime = sigPrime;
-		this.lossFunc = loss;
-		this.lossPrime = lossPrime;
 		checkRep();
 	}
 
@@ -156,7 +157,6 @@ public class NeuralNet {
 			weights.add(newWeights);
 		}
 		activations.add(newNeurons);
-		checkRep();
 	}
 
 	/**
