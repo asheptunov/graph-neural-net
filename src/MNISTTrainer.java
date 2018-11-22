@@ -43,21 +43,27 @@ public class MNISTTrainer {
 		int trainingImageSamples = readInt(trainingImages);
 		assert trainingLabelSamples == trainingImageSamples;
 		int trainingImageBytes = readInt(trainingImages) * readInt(trainingImages);
+		ProgressBar pb1 = new ProgressBar(27, trainingLabelSamples);
 		for (int i = 0; i < trainingLabelSamples; i++) {
 			trainingPartition.put(readImage(trainingImages, trainingImageBytes), readLabel(trainingLabels));
+			pb1.step();
 		}
+		pb1.finish();
 
 		// parse test database
 		assert readInt(testLabels) == 2049;
 		assert readInt(testImages) == 2051;
-		int testLabelsSamples = readInt(testLabels);
-		int testImagesSamples = readInt(testImages);
-		assert testLabelsSamples == testImagesSamples;
+		int testLabelSamples = readInt(testLabels);
+		int testImageSamples = readInt(testImages);
+		assert testLabelSamples == testImageSamples;
 		int testImageBytes = readInt(testImages) * readInt(testImages);
 		assert trainingImageBytes == testImageBytes; // ensure same dim as training database
-		for (int i = 0; i < testImagesSamples; i++) {
+		ProgressBar pb2 = new ProgressBar(13, testImageSamples);
+		for (int i = 0; i < testImageSamples; i++) {
 			testingPartition.put(readImage(testImages, testImageBytes), readLabel(testLabels));
+			pb2.step();
 		}
+		pb2.finish();
 
 		// create observer
 //		PrintStream observer = new PrintStream(new File("obs/observer" + System.nanoTime() % 9999 + ".txt"));
