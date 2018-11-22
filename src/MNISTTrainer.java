@@ -24,6 +24,7 @@ public class MNISTTrainer {
 	 *
 	 * @param hiddenLayerCount the number of hidden layers to use in the net
 	 * @param hiddenLayerDim the dimension of hidden layers in the net
+	 * @throws IOException if an I/O error has occurred
 	 */
 	public MNISTTrainer(int hiddenLayerCount, int hiddenLayerDim) throws IOException {
 		assert hiddenLayerCount >= 0;
@@ -72,10 +73,30 @@ public class MNISTTrainer {
 		trainer = new NeuralNetTrainer(trainingPartition, net, null);
 	}
 
+	/**
+	 * Reads four bytes from the given input stream, converting them to a Big-Endian integer.
+	 * Input stream is assumed to be non-null, and to accommodate a full 4 bytes to be read.
+	 *
+	 * @param in the file stream to read from
+	 * @return the generated MSB-first integer
+	 * @throws IOException if an I/O error occurred
+	 */
 	private int readInt(FileInputStream in) throws IOException {
 		return (in.read() << 6) + (in.read() << 4) + (in.read() << 2) + (in.read());
 	}
 
+	/**
+	 * Reads an array of the specified number of singular bytes from the given input stream. Returns an array of pixels
+	 * representing an image. The first element in output will be the top left pixel, and subsequent element represent
+	 * pixels going left-to-right, top-to-bottom.
+	 * Input stream is assumed to be non-null, and to accommodate a full {@code bytes} number of bytes to be read.
+	 * Bytes is assumed to be non-negative.
+	 *
+	 * @param in    the file stream to read from
+	 * @param bytes the number of pixels in the image, corresponding to the number of bytes to be read
+	 * @return an array of the bytes in the image
+	 * @throws IOException if an I/O error occurred
+	 */
 	private double[] readImage(FileInputStream in, int bytes) throws IOException {
 		double[] output = new double[bytes];
 		for (int i = 0; i < bytes; i++) {
@@ -84,6 +105,14 @@ public class MNISTTrainer {
 		return output;
 	}
 
+	/**
+	 * Reads a byte from the given input stream, and returns its value indexed as itself in an array of 10 zeroes.
+	 * Input stream is assumed to be non-null, and to accommodate a full 1 byte to be read.
+	 *
+	 * @param in the file stream to read from
+	 * @return an array where the read byte is indexed as itself and all 9 other values are 0
+	 * @throws IOException if an I/O error occurred
+	 */
 	private double[] readLabel(FileInputStream in) throws IOException {
 		double[] output = new double[10];
 		int label = in.read(); // reads 1-byte label
