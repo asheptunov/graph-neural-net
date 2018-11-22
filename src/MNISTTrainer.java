@@ -1,7 +1,4 @@
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -63,6 +60,7 @@ public class MNISTTrainer {
 		}
 
 		// create observer
+		PrintStream observer = new PrintStream(new File("obs/observer" + System.nanoTime() % 9999 + ".txt"));
 
 		// initialize network
 		NeuralNet net = new NeuralNet(trainingImageBytes, 10, hiddenLayerDim, 2+hiddenLayerCount,
@@ -70,7 +68,7 @@ public class MNISTTrainer {
 				a-> (1.0 / (1 + Math.exp(-a)))*(1-(1.0 / (1 + Math.exp(-a)))), // sigmoid prime
 				(c, e) -> 0.5*Math.pow(e - c, 2), // weighted difference of squares loss
 				(c, e) -> (c - e)); // loss prime
-		trainer = new NeuralNetTrainer(trainingPartition, net, null);
+		trainer = new NeuralNetTrainer(trainingPartition, net, observer);
 	}
 
 	/**
