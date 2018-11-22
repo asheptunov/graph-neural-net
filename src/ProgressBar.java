@@ -105,8 +105,8 @@ class ProgressBar {
 	 * Prints a single tick on the progress bar.
 	 */
 	private void displayTick() {
-//		System.out.print("▯");
-		System.out.printf("[%.1f%%] -> ", step * 100. / maxSteps);
+		System.out.print("▯");
+//		System.out.printf("[%.1f%%] -> ", step * 100. / maxSteps);
 	}
 
 	// whether or not steps have been completed

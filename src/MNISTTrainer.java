@@ -109,9 +109,6 @@ public class MNISTTrainer {
 		for (int i = 0; i < bytes; i++) {
 			output[i] = (double) raw[i];
 		}
-//		for (int i = 0; i < bytes; i++) {
-//			output[i] = in.read();
-//		}
 		return output;
 	}
 

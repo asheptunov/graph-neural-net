@@ -7,13 +7,13 @@ import java.util.*;
  * @author Andriy Sheptunov
  * @since November 2018
  */
-public class NeuralNet {
+class NeuralNet {
 	// structure
 	private int depth; // # of neuron layers
 	private int inputDim, outputDim; // # of neurons in input and output layer, respectively
 	private int hiddenLayerDim; // # of neurons in arbitrary hidden layer
-	private List<double[]> activations;
-	private List<double[][]> weights;
+	private Map<Integer, double[]> activations;
+	private Map<Integer, double[][]> weights;
 
 	// functions for math
 	private Random random;
@@ -23,9 +23,9 @@ public class NeuralNet {
 	private LossFunctionPrime lossPrime;
 
 	// whether or not to run heavy rep inv checks
-	private boolean debug = true;
+	private static final boolean DEBUG = true;
 	// whether or not to run rep inv checks at all
-	private boolean light = false;
+	private static final boolean LIGHT = false;
 
 	// Abstraction function:
 	// A NeuralNet represents the ADT of a neural network with depth # of layers and a depth - 1 # of weight layers.
@@ -104,7 +104,7 @@ public class NeuralNet {
 	 * @param loss the loss function to apply during error evaluation
 	 * @param lossPrime the derivative of the loss function to apply during back propagation
 	 */
-	public NeuralNet(int inputDim, int outputDim, int hiddenLayerDim, int depth,
+	NeuralNet(int inputDim, int outputDim, int hiddenLayerDim, int depth,
 	                 Sigmoid sig, SigmoidPrime sigPrime, LossFunction loss, LossFunctionPrime lossPrime) {
 		assert depth > 0 && inputDim > 0 && outputDim > 0 && hiddenLayerDim > 0; // ge checks
 		assert (depth != 1) || (inputDim == outputDim); // equiv to (depth == 1) -> (inputDim == outputDim)
@@ -122,16 +122,16 @@ public class NeuralNet {
 		this.outputDim = outputDim;
 		this.hiddenLayerDim = (depth > 2) ? hiddenLayerDim : -1; // hidden dim is -1 if no hidden layers
 		this.depth = depth;
-		activations = new ArrayList<>();
-		weights = new ArrayList<>();
+		activations = new HashMap<>();
+		weights = new HashMap<>();
 
 		// build
-		appendLayer(inputDim); // layer # 0
+		appendLayer(inputDim, 0); // layer # 0
 		int i; // need i outside of for scope
 		for (i = depth - 1; i > 1; i--) {
-			appendLayer(hiddenLayerDim);
+			appendLayer(hiddenLayerDim, depth - i);
 		}
-		if (i == 1) appendLayer(outputDim); // layer # depth - 1
+		if (i == 1) appendLayer(outputDim, depth - 1); // layer # depth - 1
 
 		checkRep();
 	}
@@ -143,20 +143,21 @@ public class NeuralNet {
 	 * Assumes the input dimension is greater than zero.
 	 *
 	 * @param dim the dimension of the layer to construct
+	 * @param layerIndex the index of the layer in the network
 	 */
-	private void appendLayer(int dim) {
+	private void appendLayer(int dim, int layerIndex) {
 		assert dim > 0;
 		double[] newNeurons = new double[dim]; // all values automatically 0.0
-		if (!activations.isEmpty()) { // we are adding a hidden layer or output layer; add weights
-			double[][] newWeights = new double[activations.get(activations.size() - 1).length][dim];
+		if (layerIndex > 0) { // we are adding a hidden layer or output layer; add weights
+			double[][] newWeights = new double[activations.get(layerIndex - 1).length][dim];
 			for (int i = 0; i < newWeights.length; i++) {
 				for (int j = 0; j < dim; j++) {
 					newWeights[i][j] = random.nextDouble();
 				}
 			}
-			weights.add(newWeights);
+			weights.put(layerIndex - 1, newWeights);
 		}
-		activations.add(newNeurons);
+		activations.put(layerIndex, newNeurons);
 	}
 
 	/**
@@ -167,7 +168,7 @@ public class NeuralNet {
 	 * @param input the input vector to propagate
 	 * @return the output vector
 	 */
-	public double[] propagate(double[] input) {
+	double[] propagate(double[] input) {
 		assert input != null;
 		assert input.length == inputDim;
 		System.arraycopy(input, 0, activations.get(0), 0, inputDim); // copy into first layer
@@ -207,7 +208,7 @@ public class NeuralNet {
 	 * @param expected the expected output to calculate loss against
 	 * @return the loss vector for the output
 	 */
-	public double calculateLoss(double[] input, double[] expected) {
+	double calculateLoss(double[] input, double[] expected) {
 		assert input != null;
 		assert expected != null;
 		assert input.length == inputDim;
@@ -236,21 +237,21 @@ public class NeuralNet {
 	 * @param expected      the expected output vector to calculate loss against
 	 * @return the matrix of error derivatives with respect to weights
 	 */
-	public List<double[][]> calculateWeightGradient(double[] input, double[] expected) {
+	private Map<Integer, double[][]> calculateWeightGradient(double[] input, double[] expected) {
 		assert input != null;
 		assert expected != null;
 		assert input.length == inputDim;
 		assert expected.length == outputDim;
 		if (depth < 2) {
-			return new ArrayList<>(); // no weights to adjust, return empty list
+			return new HashMap<>(); // no weights to adjust, return empty list
 		}
-		List<double[][]> dEdw = new ArrayList<>(weights.size());
-		List<double[]> dEdNet = new ArrayList<>(depth);
+		Map<Integer, double[][]> dEdw = new HashMap<>(weights.size());
+		Map<Integer, double[]> dEdNet = new HashMap<>(depth);
 		double[][] last_dEdw = new double[activations.get(depth - 2).length][outputDim];
 		double[] last_dEdNet = new double[outputDim];
 		assert weights.size() == depth - 1;
-		dEdw.add(depth - 2, last_dEdw);
-		dEdNet.add(depth - 1, last_dEdNet);
+		dEdw.put(depth - 2, last_dEdw);
+		dEdNet.put(depth - 1, last_dEdNet);
 
 		double[] jLayer = activations.get(depth - 1); // last layer
 		double[] iLayer = activations.get(depth - 2);
@@ -273,14 +274,14 @@ public class NeuralNet {
 			i = j - 1;
 			double[][] current_dEdw = new double[activations.get(i).length][activations.get(j).length];
 			double[] current_dEdNet = new double[activations.get(j).length];
-			dEdw.set(i, current_dEdw);
-			dEdNet.set(j, current_dEdNet);
+			dEdw.put(i, current_dEdw);
+			dEdNet.put(j, current_dEdNet);
 			jLayer = activations.get(j);
 			iLayer = activations.get(i);
 			double[][] next_weights = weights.get(j);
 			double[] next_dEdNet = dEdNet.get(j + 1);
 			for (int iJ = 0; iJ < jLayer.length; iJ++) { // calculate stage of recursive derivative term
-				double[] wOutOfJ = next_weights[iJ];
+//				double[] wOutOfJ = next_weights[iJ];
 				int sum = 0;
 				for (int iNext = 0; iNext < next_dEdNet.length; iNext++) {
 					sum += next_weights[iJ][iNext] * next_dEdNet[iNext];
@@ -309,14 +310,14 @@ public class NeuralNet {
 	 * @param batch a map of input vectors to their expected output vectors
 	 * @param step  the multiplier for weight adjustments; large values will perform coarser gradient descent
 	 */
-	public void gradientStep(Map<double[], double[]> batch, double step) {
+	void gradientStep(Map<double[], double[]> batch, double step) {
 		assert batch != null;
 		assert step > 0;
 		int batchSize = batch.size();
-		List<double[][]> gradientAggregate = new ArrayList<>();
+		Map<Integer, double[][]> gradientAggregate = new HashMap<>();
 		for (double[] input : batch.keySet()) {
 			double[] expected = batch.get(input);
-			List<double[][]> gradient = calculateWeightGradient(input, expected);
+			Map<Integer, double[][]> gradient = calculateWeightGradient(input, expected);
 			if (gradientAggregate.isEmpty()) {
 				gradientAggregate = gradient;
 			} else {
@@ -332,12 +333,13 @@ public class NeuralNet {
 			}
 		}
 		// adjust
+		assert weights.size() == gradientAggregate.size();
 		for (int i = 0; i < gradientAggregate.size(); i++) {
 			double[][] toAdjust = weights.get(i);
 			double[][] adjustBy = gradientAggregate.get(i);
 			for (int j = 0; j < adjustBy.length; j++) {
 				for (int k = 0; k < adjustBy[0].length; k++) {
-					toAdjust[i][j] -= (step * adjustBy[i][j] / batchSize); // normalize by batch size, scale by step
+					toAdjust[j][k] -= (step * adjustBy[j][k] / batchSize); // normalize by batch size, scale by step
 				}
 			}
 		}
@@ -349,7 +351,8 @@ public class NeuralNet {
 	 *
 	 * @return the depth
 	 */
-	public int getDepth() {
+	@Deprecated
+	int getDepth() {
 		return depth;
 	}
 
@@ -358,7 +361,7 @@ public class NeuralNet {
 	 *
 	 * @return the input dimension
 	 */
-	public int getInputDim() {
+	int getInputDim() {
 		return inputDim;
 	}
 
@@ -367,7 +370,7 @@ public class NeuralNet {
 	 *
 	 * @return the output dimension
 	 */
-	public int getOutputDim() {
+	int getOutputDim() {
 		return outputDim;
 	}
 
@@ -376,7 +379,8 @@ public class NeuralNet {
 	 *
 	 * @return the hidden layer dimension, or -1 if the net has no hidden layers
 	 */
-	public int getHiddenLayerDim() {
+	@Deprecated
+	int getHiddenLayerDim() {
 		return hiddenLayerDim;
 	}
 
@@ -385,7 +389,8 @@ public class NeuralNet {
 	 *
 	 * @return the sigmoid function
 	 */
-	public Sigmoid getSigmoidFunc() {
+	@Deprecated
+	Sigmoid getSigmoidFunc() {
 		return sigmoidFunc;
 	}
 
@@ -394,7 +399,8 @@ public class NeuralNet {
 	 *
 	 * @return the sigmoid derivative function
 	 */
-	public SigmoidPrime getSigmoidPrime() {
+	@Deprecated
+	SigmoidPrime getSigmoidPrime() {
 		return sigmoidPrime;
 	}
 
@@ -403,7 +409,8 @@ public class NeuralNet {
 	 *
 	 * @return the loss function
 	 */
-	public LossFunction getLossFunc() {
+	@Deprecated
+	LossFunction getLossFunc() {
 		return lossFunc;
 	}
 
@@ -412,7 +419,8 @@ public class NeuralNet {
 	 *
 	 * @return the loss function derivative
 	 */
-	public LossFunctionPrime getLossPrime() {
+	@Deprecated
+	LossFunctionPrime getLossPrime() {
 		return lossPrime;
 	}
 
@@ -420,15 +428,15 @@ public class NeuralNet {
 	 * Checks the representation invariant
 	 */
 	private void checkRep() {
-		if (light) {
+		if (LIGHT) {
 			return;
 		}
 		assert depth > 0 && inputDim > 0 && outputDim > 0 && hiddenLayerDim > 0;
 		assert activations != null && weights != null;
 		assert random != null && sigmoidFunc != null && sigmoidPrime != null && lossFunc != null && lossPrime != null;
 		assert activations.size() == depth && weights.size() == depth - 1;
-		if (debug) { // heavy assertions
-			assert !activations.contains(null) && !weights.contains(null);
+		if (DEBUG) { // heavy assertions
+//			assert !activations.containsKey(null) && !weights.containsKey(null);
 			assert activations.get(0).length == inputDim && activations.get(depth - 1).length == outputDim;
 			for (int i = 0; i < weights.size(); i++) {
 				assert weights.get(i).length == activations.get(i).length;
