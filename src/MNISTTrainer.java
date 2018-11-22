@@ -103,10 +103,15 @@ public class MNISTTrainer {
 	 * @throws IOException if an I/O error occurred
 	 */
 	private double[] readImage(FileInputStream in, int bytes) throws IOException {
+		byte[] raw = new byte[bytes];
+		in.read(raw);
 		double[] output = new double[bytes];
 		for (int i = 0; i < bytes; i++) {
-			output[i] = in.read();
+			output[i] = (double) raw[i];
 		}
+//		for (int i = 0; i < bytes; i++) {
+//			output[i] = in.read();
+//		}
 		return output;
 	}
 
@@ -141,6 +146,7 @@ public class MNISTTrainer {
 	public static void main(String[] args) {
 		try {
 			MNISTTrainer trainer = new MNISTTrainer(4, 16);
+			trainer.train(100, 1, 50);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

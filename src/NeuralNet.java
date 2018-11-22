@@ -249,8 +249,8 @@ public class NeuralNet {
 		double[][] last_dEdw = new double[activations.get(depth - 2).length][outputDim];
 		double[] last_dEdNet = new double[outputDim];
 		assert weights.size() == depth - 1;
-		dEdw.set(depth - 2, last_dEdw);
-		dEdNet.set(depth - 1, last_dEdNet);
+		dEdw.add(depth - 2, last_dEdw);
+		dEdNet.add(depth - 1, last_dEdNet);
 
 		double[] jLayer = activations.get(depth - 1); // last layer
 		double[] iLayer = activations.get(depth - 2);

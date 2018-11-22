@@ -39,6 +39,7 @@ public class NeuralNetTrainer {
 			dataMaster.put(input, data.get(input));
 		}
 		refillSampler();
+		this.net = net;
 		this.observer = observer; // null is ok
 		random = new Random(1);
 	}
