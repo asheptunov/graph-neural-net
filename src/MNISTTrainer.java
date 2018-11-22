@@ -60,7 +60,7 @@ public class MNISTTrainer {
 		}
 
 		// create observer
-		PrintStream observer = new PrintStream(new File("obs/observer" + System.nanoTime() % 9999 + ".txt"));
+//		PrintStream observer = new PrintStream(new File("obs/observer" + System.nanoTime() % 9999 + ".txt"));
 
 		// initialize network
 		NeuralNet net = new NeuralNet(trainingImageBytes, 10, hiddenLayerDim, 2+hiddenLayerCount,
@@ -68,7 +68,7 @@ public class MNISTTrainer {
 				a-> (1.0 / (1 + Math.exp(-a)))*(1-(1.0 / (1 + Math.exp(-a)))), // sigmoid prime
 				(c, e) -> 0.5*Math.pow(e - c, 2), // weighted difference of squares loss
 				(c, e) -> (c - e)); // loss prime
-		trainer = new NeuralNetTrainer(trainingPartition, net, observer);
+		trainer = new NeuralNetTrainer(trainingPartition, net, System.out);
 	}
 
 	/**
@@ -80,7 +80,7 @@ public class MNISTTrainer {
 	 * @throws IOException if an I/O error occurred
 	 */
 	private int readInt(FileInputStream in) throws IOException {
-		return (in.read() << 6) + (in.read() << 4) + (in.read() << 2) + (in.read());
+		return (in.read() << 24) + (in.read() << 16) + (in.read() << 8) + (in.read());
 	}
 
 	/**
@@ -129,5 +129,13 @@ public class MNISTTrainer {
 	 */
 	public void train(int iterations, int stepSize, int batchSize) {
 		trainer.train(iterations, stepSize, batchSize, true);
+	}
+
+	public static void main(String[] args) {
+		try {
+			MNISTTrainer trainer = new MNISTTrainer(4, 16);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 }
