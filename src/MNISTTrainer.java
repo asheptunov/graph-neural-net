@@ -1,3 +1,7 @@
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -13,19 +17,28 @@ public class MNISTTrainer {
 	private Map<double[], double[]> testingPartition;
 
 	/**
-	 * Creates a new MNIST trainer, importing and partitioning the MNIST dataset into a training set of the specified
-	 * size, and a reserved remainder of data for validation or testing.
-	 * Training fraction is assumed to be between 0.0 (exclusive), and 1.0 (inclusive).
+	 * Creates a new MNIST trainer, importing the training and testing partitions of the MNIST dataset, and starting
+	 * with a blank neural net of the specified dimensions for testing.
+	 * Hidden layer count is assumed to be non-negative, and hidden layer depth is assumed to be 0.
 	 *
-	 * @param trainingFraction the fraction of MNIST that should be used for training.
+	 * @param hiddenLayers the number of hidden layers to use in the net
+	 * @param hiddenLayerDepth the dimension of hidden layers in the net
 	 */
-	public MNISTTrainer(double trainingFraction) {
-		assert trainingFraction > 0.0 && trainingFraction <= 1.0;
+	public MNISTTrainer(int hiddenLayers, int hiddenLayerDepth) throws FileNotFoundException {
+		assert hiddenLayers >= 0;
+		assert hiddenLayerDepth > 0;
 		// import MNIST
+		FileInputStream mnistTrainingImages = new FileInputStream(new File("data/mnistTrainingImages.idk"));
+		FileInputStream mnistTrainingLabels = new FileInputStream(new File("data/mnistTrainingLabels.idk"));
+		FileInputStream mnistTestImages = new FileInputStream(new File("data/mnistTestImages.idk"));
+		FileInputStream mnistTestLabels= new FileInputStream(new File("data/mnistTestLabesl.idk"));
 
 		// initialize partitions
+		trainingPartition = new HashMap<>();
+		testingPartition = new HashMap<>();
 
-		// partition MNIST
+		// parse MNIST
+
 
 		// create observer
 
