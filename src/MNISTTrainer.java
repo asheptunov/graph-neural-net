@@ -67,7 +67,9 @@ public class MNISTTrainer {
 		pb2.finish();
 
 		// create observer
-//		PrintStream observer = new PrintStream(new File("obs/observer" + System.nanoTime() % 9999 + ".txt"));
+		long obsID = System.nanoTime() % 99999;
+		PrintStream observer = new PrintStream(new File("obs/observer" + obsID + ".csv"));
+		System.out.println("Using observer " + obsID);
 
 		// initialize network
 		NeuralNet net = new NeuralNet(trainingImageBytes, 10, hiddenLayerDim, 2 + hiddenLayerCount,
@@ -75,7 +77,7 @@ public class MNISTTrainer {
 				a -> (1.0 / (1 + Math.exp(-a))) * (1 - (1.0 / (1 + Math.exp(-a)))), // sigmoid prime
 				(c, e) -> 0.5 * Math.pow(e - c, 2), // weighted difference of squares loss
 				(c, e) -> (c - e)); // loss prime
-		trainer = new NeuralNetTrainer(trainingPartition, net, System.out);
+		trainer = new NeuralNetTrainer(trainingPartition, net, observer);
 	}
 
 	/**
@@ -143,7 +145,7 @@ public class MNISTTrainer {
 	public static void main(String[] args) {
 		try {
 			MNISTTrainer trainer = new MNISTTrainer(4, 16);
-			trainer.train(100, 1, 50);
+			trainer.train(999, 50, 100);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

@@ -61,7 +61,7 @@ public class NeuralNetTrainer {
 		for (int i = 0; i < iterations; i++) {
 			net.gradientStep(sample(batchSize), stepSize);
 			if (observed && observer != null) {
-				observer.printf("Loss after step %d: %.2f\n", i, validate(validationSize));
+				observer.printf(/*"Loss after step %d: */"%.2f\n"/*, i*/, validate(validationSize));
 			}
 		}
 	}
@@ -82,6 +82,22 @@ public class NeuralNetTrainer {
 			loss += net.calculateLoss(sample, dataMaster.get(sample));
 		}
 		return loss / batchSize;
+	}
+
+	/**
+	 * Tests and returns the net's estimated average loss using specified test data.
+	 * Test data assumed to be non-null and non-empty.
+	 *
+	 * @param testData the test data over which to validate
+	 * @return the net's average loss on training data
+	 */
+	public double validate(Map<double[], double[]> testData) {
+		assert testData != null && !testData.isEmpty();
+		double loss = 0;
+		for (double[] input : testData.keySet()) {
+			loss += net.calculateLoss(input, testData.get(input));
+		}
+		return loss / testData.size(); // normalize
 	}
 
 	/**
