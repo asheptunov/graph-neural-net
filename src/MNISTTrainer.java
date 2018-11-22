@@ -10,9 +10,10 @@ import java.util.Map;
  */
 public class MNISTTrainer {
 	// delegate instead of subclassing
+	private NeuralNet net;
 	private NeuralNetTrainer trainer;
 	private Map<double[], double[]> trainingPartition;
-	private Map<double[], double[]> testingPartition;
+	private Map<double[], Integer> testingPartition;
 
 	/**
 	 * Creates a new MNIST trainer, importing the training and testing partitions of the MNIST dataset, and starting
@@ -61,7 +62,7 @@ public class MNISTTrainer {
 		assert trainingImageBytes == testImageBytes; // ensure same dim as training database
 		ProgressBar pb2 = new ProgressBar(10, testImageSamples);
 		for (int i = 0; i < testImageSamples; i++) {
-			testingPartition.put(readImage(testImages, testImageBytes), readLabel(testLabels));
+			testingPartition.put(readImage(testImages, testImageBytes), testLabels.read());
 			pb2.step();
 		}
 		pb2.finish();
@@ -72,7 +73,7 @@ public class MNISTTrainer {
 		System.out.println("Using observer " + obsID);
 
 		// initialize network
-		NeuralNet net = new NeuralNet(trainingImageBytes, 10, hiddenLayerDim, 2 + hiddenLayerCount,
+		net = new NeuralNet(trainingImageBytes, 10, hiddenLayerDim, 2 + hiddenLayerCount,
 				a -> 1.0 / (1 + Math.exp(-a)), // logistic sigmoid
 				a -> (1.0 / (1 + Math.exp(-a))) * (1 - (1.0 / (1 + Math.exp(-a)))), // sigmoid prime
 				(c, e) -> 0.5 * Math.pow(e - c, 2), // weighted difference of squares loss
@@ -109,7 +110,7 @@ public class MNISTTrainer {
 		in.read(raw);
 		double[] output = new double[bytes];
 		for (int i = 0; i < bytes; i++) {
-			output[i] = (double) raw[i];
+			output[i] = raw[i] / 255.0; // pull into 0-1 range
 		}
 		return output;
 	}
@@ -126,7 +127,7 @@ public class MNISTTrainer {
 		double[] output = new double[10];
 		int label = in.read(); // reads 1-byte label
 		assert label >= 0 && label <= 9;
-		output[label] = label;
+		output[label] = 1.0;
 		return output;
 	}
 
@@ -142,10 +143,35 @@ public class MNISTTrainer {
 		trainer.train(iterations, stepSize, batchSize, true);
 	}
 
+	/**
+	 * Tests the neural network on the MNIST testing set and returns the classification hit rate.
+	 *
+	 * @return the hit rate for the neural net over the testing set
+	 */
+	public double test() {
+		double hits = 0;
+		for (double[] input : testingPartition.keySet()) {
+			int expected = testingPartition.get(input);
+			double[] outputVector = net.propagate(input);
+			int actual = 0; // index of largest output activation
+			assert outputVector.length == 10;
+			for (int i = 0; i < 10; i++) {
+				if (outputVector[i] >= outputVector[actual]) actual = i;
+			}
+			if (actual == expected) hits++;
+		}
+		return hits / testingPartition.size();
+	}
+
 	public static void main(String[] args) {
 		try {
 			MNISTTrainer trainer = new MNISTTrainer(4, 16);
-			trainer.train(999, 50, 100);
+			System.out.printf("%1.2f%% hit rate before training.\n", trainer.test() * 100.);
+			System.out.println("Training...");
+			long time = System.nanoTime();
+			trainer.train(999, 200, 100);
+			System.out.printf("Trained in %d seconds.\n", (System.nanoTime() - time) / 1000000000);
+			System.out.printf("%1.2f%% hit rate after training.\n", trainer.test() * 100.);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

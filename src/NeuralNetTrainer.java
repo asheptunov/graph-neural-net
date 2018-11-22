@@ -85,7 +85,7 @@ public class NeuralNetTrainer {
 	}
 
 	/**
-	 * Tests and returns the net's estimated average loss using specified test data.
+	 * Tests and returns the net's estimated average loss using specified data.
 	 * Test data assumed to be non-null and non-empty.
 	 *
 	 * @param testData the test data over which to validate
