@@ -45,8 +45,10 @@ public class NeuralNetTrainer {
 
 	/**
 	 * Trains the neural network using a specified number of gradient descent steps of the specified size, drawing a
-	 * randomly selected batch of the specified size each time a step is performed. Records intermittent statistics
-	 * to the observer stream, if observing has been requested and an observer exists.
+	 * randomly selected batch of the specified size each time a step is performed. Records intermittent validation
+	 * statistics to the observer stream, if observing has been requested and an observer exists.
+	 * Iterations and stepSize are assumed to be positive.
+	 * Batch size assumed to be positive and upper bounded by the total size of the input data.
 	 *
 	 * @param iterations the amount of gradient descent iterations to perform
 	 * @param stepSize   the scale factor for weight adjustment
@@ -58,15 +60,15 @@ public class NeuralNetTrainer {
 		for (int i = 0; i < iterations; i++) {
 			net.gradientStep(sample(batchSize), stepSize);
 			if (observed && observer != null) {
-				observer.printf("Error after step %d: %.2f\n", i, validate(validationSize));
+				observer.printf("Loss after step %d: %.2f\n", i, validate(validationSize));
 			}
 		}
 	}
 
 	/**
 	 * Tests and returns the net's estimated average loss using a batch of specified size of training data. Estimate not
-	 * guaranteed to be within any specific degree of accuracy of the net's true average error over all samples. Batch
-	 * size assumed to be positive and upper bounded by the total size of the input data.
+	 * guaranteed to be within any specific degree of accuracy of the net's true average error over all samples.
+	 * Batch size assumed to be positive and upper bounded by the total size of the input data.
 	 *
 	 * @return the net's estimated average loss
 	 */
