@@ -258,12 +258,12 @@ class NeuralNet {
 		double[] iLayer = activations.get(depth - 2);
 		// w_ij now conceptually points from second-to-last layer to last layer
 		for (int j = 0; j < outputDim; j++) {
-			double oj = jLayer[j];
+			double oj = jLayer[j]; // j neuron activation in output layer
 			last_dEdNet[j] = (oj - expected[j]) * oj * (1 - oj);
 		}
 		// doing this nested loop independent of the j loop eliminates costly column-major mem access
 		for (int i = 0; i < iLayer.length; i++) {
-			double oi = iLayer[i];
+			double oi = iLayer[i]; // i neuron activation in second-to-last layer
 			for (int j = 0; j < jLayer.length; j++) {
 				last_dEdw[i][j] = last_dEdNet[j] * oi;
 			}
@@ -272,7 +272,7 @@ class NeuralNet {
 		// back prop
 		int i, j;
 		for (j = depth - 2; j >= 1; j--) { // perform for all inner, right hand layers
-			i = j - 1;
+			i = j - 1; // layer left of j; input layer in last loop run
 			double[][] current_dEdw = new double[activations.get(i).length][activations.get(j).length];
 			double[] current_dEdNet = new double[activations.get(j).length];
 			dEdw.put(i, current_dEdw);
@@ -283,7 +283,7 @@ class NeuralNet {
 			double[] next_dEdNet = dEdNet.get(j + 1);
 			for (int iJ = 0; iJ < jLayer.length; iJ++) { // calculate stage of recursive derivative term
 //				double[] wOutOfJ = next_weights[iJ];
-				int sum = 0;
+				double sum = 0;
 				for (int iNext = 0; iNext < next_dEdNet.length; iNext++) {
 					sum += next_weights[iJ][iNext] * next_dEdNet[iNext];
 				}
