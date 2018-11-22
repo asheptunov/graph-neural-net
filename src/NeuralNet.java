@@ -245,6 +245,7 @@ class NeuralNet {
 		if (depth < 2) {
 			return new HashMap<>(); // no weights to adjust, return empty list
 		}
+		propagate(input);
 		Map<Integer, double[][]> dEdw = new HashMap<>(weights.size());
 		Map<Integer, double[]> dEdNet = new HashMap<>(depth);
 		double[][] last_dEdw = new double[activations.get(depth - 2).length][outputDim];
