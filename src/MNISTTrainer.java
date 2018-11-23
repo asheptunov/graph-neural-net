@@ -139,7 +139,7 @@ public class MNISTTrainer {
 	 * @param stepSize   the scale factor for weight adjustment
 	 * @param batchSize  the size of training batches to draw per gradient descent iteration
 	 */
-	public void train(int iterations, int stepSize, int batchSize) {
+	public void train(int iterations, double stepSize, int batchSize) {
 		trainer.train(iterations, stepSize, batchSize, true);
 	}
 
@@ -169,8 +169,8 @@ public class MNISTTrainer {
 			System.out.printf("%1.2f%% hit rate before training.\n", trainer.test() * 100.);
 			System.out.println("Training...");
 			long time = System.nanoTime();
-			trainer.train(999, 200, 100);
-			System.out.printf("Trained in %d seconds.\n", (System.nanoTime() - time) / 1000000000);
+			trainer.train(499, 1, 100);
+			System.out.printf("Trained in %d second(s).\n", (System.nanoTime() - time) / 1000000000);
 			System.out.printf("%1.2f%% hit rate after training.\n", trainer.test() * 100.);
 		} catch (IOException e) {
 			e.printStackTrace();

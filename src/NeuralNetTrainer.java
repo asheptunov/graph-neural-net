@@ -56,7 +56,7 @@ public class NeuralNetTrainer {
 	 * @param batchSize  the size of training batches to draw per gradient descent iteration
 	 * @param observed   whether or not to output intermittent statistics during training
 	 */
-	public void train(int iterations, int stepSize, int batchSize, boolean observed) {
+	public void train(int iterations, double stepSize, int batchSize, boolean observed) {
 		int validationSize = dataMaster.size() / 100 + 1; // at least 0
 		for (int i = 0; i < iterations; i++) {
 			net.gradientStep(sample(batchSize), stepSize);

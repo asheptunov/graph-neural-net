@@ -23,9 +23,9 @@ class NeuralNet {
 	private LossFunctionPrime lossPrime;
 
 	// whether or not to run heavy rep inv checks
-	private static final boolean DEBUG = true;
+	private static final boolean DEBUG = false;
 	// whether or not to run rep inv checks at all
-	private static final boolean LIGHT = false;
+	private static final boolean LIGHT = true;
 
 	// Abstraction function:
 	// A NeuralNet represents the ADT of a neural network with depth # of layers and a depth - 1 # of weight layers.
@@ -173,28 +173,32 @@ class NeuralNet {
 		assert input.length == inputDim;
 		System.arraycopy(input, 0, activations.get(0), 0, inputDim); // copy into first layer
 		for (int l = 1; l < depth; l++) { // traverse through output layer multiplying layer vector by weights matrix
-			double[] pActivations = activations.get(l - 1); // l-1th layer activations (previous)
-			double[] lActivations = activations.get(l); // lth layer activations (current)
-			double[][] lWeights = weights.get(l - 1); // weights between l-1th layer (previous) and lth layer (current)
-			assert lWeights.length == pActivations.length;
-			assert lWeights[0].length == lActivations.length;
-			for (int i = 0; i < lActivations.length; i++) {
-				lActivations[i] = 0.0; // reset all values
+			double[] previousNeurons = activations.get(l - 1); // l-1th layer activations (previous)
+			double[] currentNeurons = activations.get(l); // lth layer activations (current)
+			double[][] intermediateWeights = weights.get(l - 1); // weights between l-1th layer (previous) and lth layer (current)
+			assert intermediateWeights.length == previousNeurons.length;
+			assert intermediateWeights[0].length == currentNeurons.length;
+			for (int i = 0; i < currentNeurons.length; i++) {
+				currentNeurons[i] = 0.0; // reset all values
 			}
-			for (int i = 0; i < pActivations.length; i++) {
-				for (int j = 0; j < lActivations.length; j++) {
+			for (int i = 0; i < previousNeurons.length; i++) {
+				for (int j = 0; j < currentNeurons.length; j++) {
 					// propagates one value from previous layer into all values from next layer
-					lActivations[j] += (pActivations[i] * lWeights[i][j]);
+					currentNeurons[j] += (sigmoidFunc.func(previousNeurons[i]) * intermediateWeights[i][j]);
 				}
 			}
-			for (int i = 0; i < lActivations.length; i++) {
-				lActivations[i] = sigmoidFunc.func(lActivations[i]); // apply sigmoid to all values
-			}
+//			for (int i = 0; i < currentNeurons.length; i++) {
+//				currentNeurons[i] = sigmoidFunc.func(currentNeurons[i]); // apply sigmoid to all values
+//			}
 		}
-		double[] output = new double[outputDim];
-		System.arraycopy(activations.get(depth - 1), 0, output, 0, outputDim); // copy out last layer
+		double[] outputNeurons = activations.get(depth - 1);
+		double[] outputActivations = new double[outputDim];
+		for (int i = 0; i < outputDim; i++) {
+			outputActivations[i] = sigmoidFunc.func(outputNeurons[i]);
+		}
+//		System.arraycopy(activations.get(depth - 1), 0, output, 0, outputDim); // copy out last layer
 		checkRep();
-		return output;
+		return outputActivations;
 	}
 
 	/**
@@ -213,13 +217,13 @@ class NeuralNet {
 		assert expected != null;
 		assert input.length == inputDim;
 		assert expected.length == outputDim;
-		double[] calculated = propagate(input);
-		double output = 0;
+		double[] calculatedActivations = propagate(input);
+		double loss = 0;
 		for (int i = 0; i < outputDim; i++) {
-			output += lossFunc.loss(calculated[i], expected[i]);
+			loss += lossFunc.loss(calculatedActivations[i], expected[i]); // literal unweighted aggregate
 		}
 		checkRep();
-		return output;
+		return loss;
 	}
 
 	/**
@@ -254,17 +258,18 @@ class NeuralNet {
 		dEdw.put(depth - 2, last_dEdw);
 		dEdNet.put(depth - 1, last_dEdNet);
 
-		double[] jLayer = activations.get(depth - 1); // last layer
-		double[] iLayer = activations.get(depth - 2);
+		double[] jLayerNeurons = activations.get(depth - 1); // last layer
+		double[] iLayerNeurons = activations.get(depth - 2);
 		// w_ij now conceptually points from second-to-last layer to last layer
 		for (int j = 0; j < outputDim; j++) {
-			double oj = jLayer[j]; // j neuron activation in output layer
-			last_dEdNet[j] = (oj - expected[j]) * oj * (1 - oj);
+//			double oj = jLayerNeurons[j]; // j neuron activation in output layer
+//			last_dEdNet[j] = (oj - expected[j]) * oj * (1 - oj);
+			last_dEdNet[j] = lossPrime.func(sigmoidFunc.func(jLayerNeurons[j]), expected[j]) * sigmoidPrime.func(jLayerNeurons[j]);
 		}
 		// doing this nested loop independent of the j loop eliminates costly column-major mem access
-		for (int i = 0; i < iLayer.length; i++) {
-			double oi = iLayer[i]; // i neuron activation in second-to-last layer
-			for (int j = 0; j < jLayer.length; j++) {
+		for (int i = 0; i < iLayerNeurons.length; i++) {
+			double oi = sigmoidFunc.func(iLayerNeurons[i]); // i neuron activation in second-to-last layer
+			for (int j = 0; j < jLayerNeurons.length; j++) {
 				last_dEdw[i][j] = last_dEdNet[j] * oi;
 			}
 		}
@@ -277,22 +282,23 @@ class NeuralNet {
 			double[] current_dEdNet = new double[activations.get(j).length];
 			dEdw.put(i, current_dEdw);
 			dEdNet.put(j, current_dEdNet);
-			jLayer = activations.get(j);
-			iLayer = activations.get(i);
+			jLayerNeurons = activations.get(j);
+			iLayerNeurons = activations.get(i);
 			double[][] next_weights = weights.get(j);
 			double[] next_dEdNet = dEdNet.get(j + 1);
-			for (int iJ = 0; iJ < jLayer.length; iJ++) { // calculate stage of recursive derivative term
+			for (int iJ = 0; iJ < jLayerNeurons.length; iJ++) { // calculate stage of recursive derivative term
 //				double[] wOutOfJ = next_weights[iJ];
 				double sum = 0;
-				for (int iNext = 0; iNext < next_dEdNet.length; iNext++) {
-					sum += next_weights[iJ][iNext] * next_dEdNet[iNext];
+				for (int iK = 0; iK < next_dEdNet.length; iK++) {
+					sum += next_weights[iJ][iK] * next_dEdNet[iK];
 				}
-				double oj = jLayer[iJ];
-				current_dEdNet[iJ] = sum * oj * (1 - oj);
+//				double oj = jLayerNeurons[iJ];
+//				current_dEdNet[iJ] = sum * oj * (1 - oj);
+				current_dEdNet[iJ] = sum * sigmoidPrime.func(jLayerNeurons[iJ]);
 			}
-			for (int iI = 0; iI < iLayer.length; iI++) { // calculate weight derivative
-				for (int iJ = 0; iJ < jLayer.length; iJ++) {
-					current_dEdw[iI][iJ] = current_dEdNet[j] * iLayer[iI];
+			for (int iI = 0; iI < iLayerNeurons.length; iI++) { // calculate weight derivative
+				for (int iJ = 0; iJ < jLayerNeurons.length; iJ++) {
+					current_dEdw[iI][iJ] = current_dEdNet[j] * sigmoidFunc.func(iLayerNeurons[iI]); // TODO FIX INDEXING BUG!!
 				}
 			}
 		}
