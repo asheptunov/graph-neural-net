@@ -298,7 +298,7 @@ class NeuralNet {
 			}
 			for (int iI = 0; iI < iLayerNeurons.length; iI++) { // calculate weight derivative
 				for (int iJ = 0; iJ < jLayerNeurons.length; iJ++) {
-					current_dEdw[iI][iJ] = current_dEdNet[j] * sigmoidFunc.func(iLayerNeurons[iI]); // TODO FIX INDEXING BUG!!
+					current_dEdw[iI][iJ] = current_dEdNet[iJ] * sigmoidFunc.func(iLayerNeurons[iI]); // TODO FIX INDEXING BUG!!
 				}
 			}
 		}
