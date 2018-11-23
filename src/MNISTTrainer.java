@@ -74,8 +74,8 @@ public class MNISTTrainer {
 
 		// initialize network
 		net = new NeuralNet(trainingImageBytes, 10, hiddenLayerDim, 2 + hiddenLayerCount,
-				a -> Math.max(0, a), // ReLU
-				a -> (a <= 0.0) ? 0.0 : 1.0, // step func (ReLU derivative)
+				a -> (a > 0) ? a : 0.01 * a, // Leaky ReLU
+				a -> (a <= 0.0) ? 0.01 : 1.0, // step func (Leaky ReLU derivative)
 				(c, e) -> 0.5 * (e - c) * (e - c), // weighted difference of squares loss
 				(c, e) -> (c - e)); // loss prime
 		trainer = new NeuralNetTrainer(trainingPartition, net, observer);
@@ -226,7 +226,7 @@ public class MNISTTrainer {
 			// train
 			System.out.println("\nTraining...");
 			long time = System.nanoTime();
-			trainer.train(999, .4, 64);
+			trainer.train(999, .4, 128);
 			System.out.printf("Trained in %d second(s).\n", (System.nanoTime() - time) / 1000000000);
 
 			// post-test
