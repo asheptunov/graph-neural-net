@@ -152,7 +152,7 @@ class NeuralNet {
 			double[][] newWeights = new double[activations.get(layerIndex - 1).length][dim];
 			for (int i = 0; i < newWeights.length; i++) {
 				for (int j = 0; j < dim; j++) {
-					newWeights[i][j] = random.nextDouble();
+					newWeights[i][j] = random.nextDouble() - 0.5;
 				}
 			}
 			weights.put(layerIndex - 1, newWeights);
@@ -298,7 +298,7 @@ class NeuralNet {
 			}
 			for (int iI = 0; iI < iLayerNeurons.length; iI++) { // calculate weight derivative
 				for (int iJ = 0; iJ < jLayerNeurons.length; iJ++) {
-					current_dEdw[iI][iJ] = current_dEdNet[iJ] * sigmoidFunc.func(iLayerNeurons[iI]); // TODO FIX INDEXING BUG!!
+					current_dEdw[iI][iJ] = current_dEdNet[iJ] * sigmoidFunc.func(iLayerNeurons[iI]);
 				}
 			}
 		}

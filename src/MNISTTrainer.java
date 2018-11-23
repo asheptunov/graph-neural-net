@@ -52,7 +52,7 @@ public class MNISTTrainer {
 		}
 		pb1.finish();
 
-		// parse test database
+		// parse testOnTestData database
 		assert readInt(testLabels) == 2049;
 		assert readInt(testImages) == 2051;
 		int testLabelSamples = readInt(testLabels);
@@ -70,13 +70,13 @@ public class MNISTTrainer {
 		// create observer
 		long obsID = System.nanoTime() % 99999;
 		PrintStream observer = new PrintStream(new File("obs/observer" + obsID + ".csv"));
-		System.out.println("Using observer " + obsID);
+		System.out.println("\nUsing observer " + obsID);
 
 		// initialize network
 		net = new NeuralNet(trainingImageBytes, 10, hiddenLayerDim, 2 + hiddenLayerCount,
-				a -> 1.0 / (1 + Math.exp(-a)), // logistic sigmoid
-				a -> (1.0 / (1 + Math.exp(-a))) * (1 - (1.0 / (1 + Math.exp(-a)))), // sigmoid prime
-				(c, e) -> 0.5 * Math.pow(e - c, 2), // weighted difference of squares loss
+				a -> Math.max(0, a), // ReLU
+				a -> (a <= 0.0) ? 0.0 : 1.0, // step func (ReLU derivative)
+				(c, e) -> 0.5 * (e - c) * (e - c), // weighted difference of squares loss
 				(c, e) -> (c - e)); // loss prime
 		trainer = new NeuralNetTrainer(trainingPartition, net, observer);
 	}
@@ -110,13 +110,14 @@ public class MNISTTrainer {
 		in.read(raw);
 		double[] output = new double[bytes];
 		for (int i = 0; i < bytes; i++) {
-			output[i] = raw[i] / 255.0; // pull into 0-1 range
+			output[i] = (raw[i] & 0xff) / 255.0; // pull into 0-1 range
 		}
 		return output;
 	}
 
 	/**
-	 * Reads a byte from the given input stream, and returns its value indexed as itself in an array of 10 zeroes.
+	 * Reads a byte from the given input stream, and returns 1 at the index of the value in an array with the 9 other
+	 * values being zeroes.
 	 * Input stream is assumed to be non-null, and to accommodate a full 1 byte to be read.
 	 *
 	 * @param in the file stream to read from
@@ -146,9 +147,10 @@ public class MNISTTrainer {
 	/**
 	 * Tests the neural network on the MNIST testing set and returns the classification hit rate.
 	 *
+	 * @param verbose whether or not to write status to the console in real time
 	 * @return the hit rate for the neural net over the testing set
 	 */
-	public double test() {
+	public double testOnTestData(boolean verbose) {
 		double hits = 0;
 		for (double[] input : testingPartition.keySet()) {
 			int expected = testingPartition.get(input);
@@ -158,22 +160,88 @@ public class MNISTTrainer {
 			for (int i = 0; i < 10; i++) {
 				if (outputVector[i] >= outputVector[actual]) actual = i;
 			}
+			if (verbose) {
+				System.out.print("vector: ");
+				for (int i = 0; i < outputVector.length; i++) {
+					System.out.printf("%.5f ", outputVector[i]);
+				}
+				System.out.println("\nchoice: " + actual);
+				System.out.println("expected: "+ expected);
+			}
 			if (actual == expected) hits++;
 		}
 		return hits / testingPartition.size();
 	}
 
+	/**
+	 * Tests the neural network on the MNIST training set and returns the classification hit rate.
+	 *
+	 * @param verbose whether or not to write status to the console in real time
+	 * @return the hit rate for the neural net over the training set
+	 */
+	public double testOnTrainingData(boolean verbose) {
+		double hits = 0;
+		for (double[] input : trainingPartition.keySet()) {
+			double[] expectedRaw = trainingPartition.get(input);
+			int expected = 0;
+			for (int i = 0; i < expectedRaw.length; i++) {
+				if (expectedRaw[i] == 1) expected = i;
+			}
+			double[] outputVector = net.propagate(input);
+			int actual = 0; // index of largest output activation
+			assert outputVector.length == 10;
+			for (int i = 0; i < 10; i++) {
+				if (outputVector[i] >= outputVector[actual]) actual = i;
+			}
+			if (verbose) {
+				System.out.print("vector: ");
+				for (int i = 0; i < outputVector.length; i++) {
+					System.out.printf("%.5f ", outputVector[i]);
+				}
+				System.out.println("\nchoice: " + actual);
+				System.out.println("expected: "+ expected);
+			}
+			if (actual == expected) hits++;
+		}
+		return hits / trainingPartition.size();
+	}
+
 	public static void main(String[] args) {
 		try {
-			MNISTTrainer trainer = new MNISTTrainer(4, 16);
-			System.out.printf("%1.2f%% hit rate before training.\n", trainer.test() * 100.);
-			System.out.println("Training...");
+			// init and pre-test
+			MNISTTrainer trainer = new MNISTTrainer(8, 16);
+			System.out.printf("%1.2f%% hit rate before training.\n", trainer.testOnTestData(false) * 100.);
+
+//			System.out.println("input: ");
+//			double[] input = genRandomInput(784);
+//			for (int i = 0; i < input.length; i++) {
+//				System.out.printf("%.1f ", input[i]);
+//			}
+//			System.out.println("\noutput: ");
+//			double[] output = trainer.net.propagate(input);
+//			for (int i = 0; i < output.length; i++) {
+//				System.out.printf("%.3f ", output[i]);
+//			}
+
+			// train
+			System.out.println("\nTraining...");
 			long time = System.nanoTime();
-			trainer.train(499, 1, 100);
+			trainer.train(999, .4, 64);
 			System.out.printf("Trained in %d second(s).\n", (System.nanoTime() - time) / 1000000000);
-			System.out.printf("%1.2f%% hit rate after training.\n", trainer.test() * 100.);
+
+			// post-test
+			System.out.printf("%1.2f%% hit rate after training.\n", trainer.testOnTestData(false) * 100.);
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+
+	private static double[] genRandomInput(int dim) {
+		double[] output = new double[dim];
+		for (int i = 0; i < output.length; i++) {
+			output[i] = Math.random();
+		}
+		return output;
 	}
 }

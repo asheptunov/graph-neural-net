@@ -88,7 +88,7 @@ public class NeuralNetTrainer {
 	 * Tests and returns the net's estimated average loss using specified data.
 	 * Test data assumed to be non-null and non-empty.
 	 *
-	 * @param testData the test data over which to validate
+	 * @param testData the testOnTestData data over which to validate
 	 * @return the net's average loss on training data
 	 */
 	public double validate(Map<double[], double[]> testData) {
