@@ -218,18 +218,22 @@ public class MNISTTrainer {
 
 	public static void main(String[] args) {
 		try {
-			// init and pre-test
-			MNISTTrainer trainer = new MNISTTrainer(4, 16, false);
-			System.out.printf("\n%1.2f%% hit rate before training.\n", trainer.testOnTestData(false) * 100.);
+			// init
+            MNISTTrainer trainer = new MNISTTrainer(4, 16, false);
 
-			// train
-			System.out.println("\nTraining...");
-			long time = System.nanoTime();
-			trainer.train(1 << 14, .24, 8);
-			System.out.printf("Trained in %d second(s).\n", (System.nanoTime() - time) / 1000000000);
+            // pre-test
+            System.out.printf("\n%1.2f%% hit rate on training set before training.\n", trainer.testOnTrainingData(false) * 100.);
+            System.out.printf("%1.2f%% hit rate on test set before training.\n", trainer.testOnTestData(false) * 100.);
 
-			// post-test
-			System.out.printf("\n%1.2f%% hit rate after training.\n", trainer.testOnTestData(false) * 100.);
+            // train
+            System.out.println("\nTraining...");
+            long time = System.nanoTime();
+            trainer.train(100000, .050, 1);
+            System.out.printf("Trained in %.2f second(s).\n", (System.nanoTime() - time) / 1000000000.0);
+
+            // post-test
+            System.out.printf("\n%1.2f%% hit rate on training set after training.\n", trainer.testOnTrainingData(false) * 100.);
+            System.out.printf("%1.2f%% hit rate on test set after training.\n", trainer.testOnTestData(false) * 100.);
 
 		} catch (IOException e) {
 			e.printStackTrace();
