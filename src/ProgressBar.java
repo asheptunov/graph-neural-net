@@ -119,7 +119,8 @@ class ProgressBar {
 	void finish() {
 		if (!finished) {
 			finished = true;
-			System.out.printf("[100%%]\nFinished in %.2f seconds\n", (System.nanoTime() - startTime) / 1000000000.0);
+			System.out.printf("▯\nFinished in %.2f seconds\n", (System.nanoTime() - startTime) / 1000000000.0);
+//			System.out.printf("[100%%]\nFinished in %.2f seconds\n", (System.nanoTime() - startTime) / 1000000000.0);
 		}
 	}
 

@@ -15,6 +15,8 @@ public class MNISTTrainer {
 	private Map<double[], double[]> trainingPartition;
 	private Map<double[], Integer> testingPartition;
 
+	private boolean observed;
+
 	/**
 	 * Creates a new MNIST trainer, importing the training and testing partitions of the MNIST dataset, and starting
 	 * with a blank neural net of the specified dimensions for testing.
@@ -22,11 +24,13 @@ public class MNISTTrainer {
 	 *
 	 * @param hiddenLayerCount the number of hidden layers to use in the net
 	 * @param hiddenLayerDim the dimension of hidden layers in the net
+	 * @param observed whether or not training progress should be assessed and written in real-time
 	 * @throws IOException if an I/O error has occurred
 	 */
-	public MNISTTrainer(int hiddenLayerCount, int hiddenLayerDim) throws IOException {
+	public MNISTTrainer(int hiddenLayerCount, int hiddenLayerDim, boolean observed) throws IOException {
 		assert hiddenLayerCount >= 0;
 		assert hiddenLayerDim > 0;
+		this.observed = observed;
 		// import MNIST
 		FileInputStream trainingLabels = new FileInputStream(new File("data/train-labels-idx1-ubyte"));
 		FileInputStream trainingImages = new FileInputStream(new File("data/train-images-idx3-ubyte"));
@@ -68,9 +72,14 @@ public class MNISTTrainer {
 		pb2.finish();
 
 		// create observer
-		long obsID = System.nanoTime() % 99999;
-		PrintStream observer = new PrintStream(new File("obs/observer" + obsID + ".csv"));
-		System.out.println("\nUsing observer " + obsID);
+		PrintStream observer = null;
+		if (observed) {
+			long obsID = System.nanoTime() % 99999;
+			observer = new PrintStream(new File("obs/observer" + obsID + ".csv"));
+			System.out.println("\nUsing observer " + obsID);
+		} else {
+			System.out.println("\nNot using observer");
+		}
 
 		// initialize network
 		net = new NeuralNet(trainingImageBytes, 10, hiddenLayerDim, 2 + hiddenLayerCount,
@@ -107,7 +116,8 @@ public class MNISTTrainer {
 	 */
 	private double[] readImage(FileInputStream in, int bytes) throws IOException {
 		byte[] raw = new byte[bytes];
-		in.read(raw);
+		int read = in.read(raw);
+		assert read == bytes;
 		double[] output = new double[bytes];
 		for (int i = 0; i < bytes; i++) {
 			output[i] = (raw[i] & 0xff) / 255.0; // pull into 0-1 range
@@ -141,7 +151,7 @@ public class MNISTTrainer {
 	 * @param batchSize  the size of training batches to draw per gradient descent iteration
 	 */
 	public void train(int iterations, double stepSize, int batchSize) {
-		trainer.train(iterations, stepSize, batchSize, true);
+		trainer.train(iterations, stepSize, batchSize, observed);
 	}
 
 	/**
@@ -195,8 +205,8 @@ public class MNISTTrainer {
 			}
 			if (verbose) {
 				System.out.print("vector: ");
-				for (int i = 0; i < outputVector.length; i++) {
-					System.out.printf("%.5f ", outputVector[i]);
+				for (double v : outputVector) {
+					System.out.printf("%.5f ", v);
 				}
 				System.out.println("\nchoice: " + actual);
 				System.out.println("expected: "+ expected);
@@ -209,34 +219,30 @@ public class MNISTTrainer {
 	public static void main(String[] args) {
 		try {
 			// init and pre-test
-			MNISTTrainer trainer = new MNISTTrainer(8, 16);
-			System.out.printf("%1.2f%% hit rate before training.\n", trainer.testOnTestData(false) * 100.);
-
-//			System.out.println("input: ");
-//			double[] input = genRandomInput(784);
-//			for (int i = 0; i < input.length; i++) {
-//				System.out.printf("%.1f ", input[i]);
-//			}
-//			System.out.println("\noutput: ");
-//			double[] output = trainer.net.propagate(input);
-//			for (int i = 0; i < output.length; i++) {
-//				System.out.printf("%.3f ", output[i]);
-//			}
+			MNISTTrainer trainer = new MNISTTrainer(4, 16, false);
+			System.out.printf("\n%1.2f%% hit rate before training.\n", trainer.testOnTestData(false) * 100.);
 
 			// train
 			System.out.println("\nTraining...");
 			long time = System.nanoTime();
-			trainer.train(999, .4, 128);
+			trainer.train(1 << 14, .24, 8);
 			System.out.printf("Trained in %d second(s).\n", (System.nanoTime() - time) / 1000000000);
 
 			// post-test
-			System.out.printf("%1.2f%% hit rate after training.\n", trainer.testOnTestData(false) * 100.);
+			System.out.printf("\n%1.2f%% hit rate after training.\n", trainer.testOnTestData(false) * 100.);
 
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 
+	/**
+	 * Generates and returns an array the specified dimension containing numbers from 0.0 (inclusive) to 0.1 (exclusive).
+	 *
+	 * @param dim the requested array dimension
+	 * @return the generated array
+	 */
+	@Deprecated
 	private static double[] genRandomInput(int dim) {
 		double[] output = new double[dim];
 		for (int i = 0; i < output.length; i++) {

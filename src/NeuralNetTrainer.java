@@ -137,6 +137,7 @@ public class NeuralNetTrainer {
 	 *
 	 * @return the neural net
 	 */
+	@Deprecated
 	private NeuralNet getNeuralNet() {
 		return net;
 	}
