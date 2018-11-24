@@ -13,5 +13,5 @@ public interface LossFunction {
 	 * @param expected   the expected data
 	 * @return the computed loss
 	 */
-	public Double loss(double calculated, double expected);
+	Double loss(double calculated, double expected);
 }

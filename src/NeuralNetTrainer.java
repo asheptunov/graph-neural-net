@@ -1,4 +1,5 @@
-import java.io.OutputStream;
+import org.jetbrains.annotations.NotNull;
+
 import java.io.PrintStream;
 import java.util.*;
 
@@ -9,7 +10,7 @@ import java.util.*;
  * @author Andriy Sheptunov
  * @since November 2018
  */
-public class NeuralNetTrainer {
+class NeuralNetTrainer {
 	private NeuralNet net;
 	private Map<double[], double[]> dataMaster;
 	private List<double[]> dataSampler;
@@ -28,11 +29,13 @@ public class NeuralNetTrainer {
 	 * @param data training data map from input vectors to expected output vectors
 	 * @param net the network to train
 	 */
-	public NeuralNetTrainer(Map<double[], double[]> data, NeuralNet net, PrintStream observer) {
+	NeuralNetTrainer(Map<double[], double[]> data, NeuralNet net, PrintStream observer) {
+		// precondition checks
 		assert data != null;
 		assert net != null;
 		assert data.keySet().iterator().next().length == net.getInputDim();
 		assert data.values().iterator().next().length == net.getOutputDim();
+
 		dataMaster = new HashMap<>();
 		dataSampler = new ArrayList<>();
 		for (double[] input : data.keySet()) {
@@ -47,34 +50,48 @@ public class NeuralNetTrainer {
 	/**
 	 * Trains the neural network using a specified number of gradient descent steps of the specified size, drawing a
 	 * randomly selected batch of the specified size each time a step is performed. Records intermittent validation
-	 * statistics to the observer stream, if observing has been requested and an observer exists.
-	 * Iterations and stepSize are assumed to be positive.
-	 * Batch size assumed to be positive and upper bounded by the total size of the input data.
+	 * statistics to the observer stream if observing has been requested using {@code observed} and an observer exists
+	 * for this trainer.
+	 *
+	 * {@code iterations} and {@code stepSize} are assumed to be positive.
+	 * {@code batchSize} assumed to be positive and upper bounded by the total size of the input data.
 	 *
 	 * @param iterations the amount of gradient descent iterations to perform
 	 * @param stepSize   the scale factor for weight adjustment
 	 * @param batchSize  the size of training batches to draw per gradient descent iteration
 	 * @param observed   whether or not to output intermittent statistics during training
 	 */
-	public void train(int iterations, double stepSize, int batchSize, boolean observed) {
-		int validationSize = dataMaster.size() / 100 + 1; // at least 0
-		for (int i = 0; i < iterations; i++) {
-			net.gradientStep(sample(batchSize), stepSize);
-			if (observed && observer != null) {
-				observer.printf(/*"Loss after step %d: */"%.2f\n"/*, i*/, validate(validationSize));
+	void train(int iterations, double stepSize, int batchSize, boolean observed) {
+		// precondition checks
+		assert iterations > 0 && stepSize > 0;
+		assert batchSize > 0 && batchSize < dataMaster.size();
+
+		int validationSize = dataMaster.size() / 100 + 1; // 1% of data; at least 0
+		// do observer check once instead of every iteration to save time at tens of thousands of iterations
+		if (observed && observer != null) {
+			for (int i = 0; i < iterations; i++) {
+				net.gradientStep(sample(batchSize), stepSize);
+				observer.printf("%d,%.2f\n", i, validate(validationSize));
+			}
+		} else {
+			for (int i = 0; i < iterations; i++) {
+				net.gradientStep(sample(batchSize), stepSize);
 			}
 		}
 	}
 
 	/**
-	 * Tests and returns the net's estimated average loss using a batch of specified size of training data. Estimate not
-	 * guaranteed to be within any specific degree of accuracy of the net's true average error over all samples.
-	 * Batch size assumed to be positive and upper bounded by the total size of the input data.
+	 * Tests and returns the net's estimated average loss using a mini batch of training size of specified size. Estimate
+	 * not guaranteed to be within any specific degree of accuracy of the net's true average error over all samples.
+	 * {@code batchSize} assumed to be positive and upper bounded by the total size of the trainer's training data.
 	 *
-	 * @return the net's estimated average loss
+	 * @param batchSize the number of data points to draw for the mini batch
+	 * @return the net's estimated average loss over the batch
 	 */
-	public double validate(int batchSize) {
+	private double validate(int batchSize) {
+		// precondition checks
 		assert batchSize > 0 && batchSize < dataMaster.size();
+
 		double loss = 0;
 		Iterator<double[]> keysIterator = dataMaster.keySet().iterator();
 		for (int i = 0; i < batchSize; i++) {
@@ -85,14 +102,18 @@ public class NeuralNetTrainer {
 	}
 
 	/**
-	 * Tests and returns the net's estimated average loss using specified data.
-	 * Test data assumed to be non-null and non-empty.
+	 * Tests and returns the net's estimated average loss using specified input to expected (training / testing) data
+	 * mappings.
+	 * {@code testData} assumed to be non-null and non-empty.
 	 *
-	 * @param testData the testOnTestData data over which to validate
-	 * @return the net's average loss on training data
+	 * @param testData the data over which to validate
+	 * @return the net's estimated average loss over given data
 	 */
-	public double validate(Map<double[], double[]> testData) {
-		assert testData != null && !testData.isEmpty();
+	@Deprecated
+	private double validate(@NotNull Map<double[], double[]> testData) {
+		// precondition checks
+		assert !testData.isEmpty();
+
 		double loss = 0;
 		for (double[] input : testData.keySet()) {
 			loss += net.calculateLoss(input, testData.get(input));
@@ -101,15 +122,17 @@ public class NeuralNetTrainer {
 	}
 
 	/**
-	 * Randomly samples a batch of training points from the total set of training data without replacement, and returns
-	 * the mini batch. Once the total data set is exhausted, will re-draw from the original set. Batch size assumed to
-	 * be positive and upper bounded by the total size of the input data.
+	 * Randomly samples and returns a mini batch of training points from the total set of training data, without
+	 * replacement. However, once the total data set is exhausted, re-draw from the original set will occur.
+	 * {@code batchSize} assumed to be positive and upper bounded by the total size of the trainer's training data.
 	 *
 	 * @param batchSize the number of data points to draw
 	 * @return the generated mini batch
 	 */
 	private Map<double[], double[]> sample(int batchSize) {
+		// precondition checks
 		assert batchSize > 0 && batchSize < dataMaster.size();
+
 		Map<double[], double[]> miniBatch = new HashMap<>();
 		for (int i = 0; i < batchSize; i++) {
 			if (dataSampler.isEmpty()) {
@@ -124,22 +147,12 @@ public class NeuralNetTrainer {
 	}
 
 	/**
-	 * Fills the sampler with a copy of the master. Sampler will be emptied of previous values.
+	 * Fills the sampler with a copy of the master's input (key) set. Sampler will be emptied of previous values.
 	 */
 	private void refillSampler() {
 		dataSampler.clear();
 		assert dataSampler.isEmpty();
 		dataSampler.addAll(dataMaster.keySet());
-	}
-
-	/**
-	 * Returns the neural network that this trainer operates on.
-	 *
-	 * @return the neural net
-	 */
-	@Deprecated
-	private NeuralNet getNeuralNet() {
-		return net;
 	}
 
 }

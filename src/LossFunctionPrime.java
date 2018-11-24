@@ -10,5 +10,5 @@ public interface LossFunctionPrime {
 	 * @param expected   the expected data
 	 * @return the computed loss derivative
 	 */
-	public Double func(double calculated, double expected);
+	Double func(double calculated, double expected);
 }
