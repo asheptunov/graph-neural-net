@@ -3,7 +3,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * TODO
+ * Trains a parametrized neural network on the MNIST dataset, and tests its performance over time.
  *
  * @author Andriy Sheptunov
  * @since November 2018
