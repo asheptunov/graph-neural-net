@@ -85,11 +85,15 @@ public class MNISTTrainer {
 		net = new NeuralNet(trainingImageBytes, 10, hiddenLayerDim, 2 + hiddenLayerCount,
 				a -> (a > 0) ? a : 0.01 * a, // leaky ReLU
 				a -> (a <= 0.0) ? 0.01 : 1.0, // step func (derivative of differentiability-adjusted leaky ReLU)
-				a -> 1 / (1 + Math.exp(-a)), // logistic function (sigmoid)
-				a -> (1 / (1 + Math.exp(-a))) * (1 - (1 / (1 + Math.exp(-a)))), // logistic sigmoid derivative
+				a -> (a > 0) ? a : 0.01 * a,
+				a -> (a <= 0.0) ? 0.01 : 1.0, // logistic sigmoid derivative
 				(c, e) -> 0.5 * (e - c) * (e - c), // weighted diff of squares
-				(c, e) -> (c - e)); // weighted diff of squares derivative
+				(c, e) -> (c - e), // weighted diff of squares derivative
+				true); // use noise
 		trainer = new NeuralNetTrainer(trainingPartition, net, observer);
+
+//		a -> 1 / (1 + Math.exp(-a)), // logistic function (sigmoid)
+//				a -> (1 / (1 + Math.exp(-a))) * (1 - (1 / (1 + Math.exp(-a)))), // logistic sigmoid derivative
 	}
 
 	/**
@@ -230,8 +234,8 @@ public class MNISTTrainer {
             // train
             System.out.println("\nTraining...");
             long time = System.nanoTime();
-            trainer.train(100000, .050, 1); // 92.53% test acc in 15.20 seconds with ReLU on all layers
-//            trainer.train(50000, .010, 2);
+//            trainer.train(100000, .050, 1); // 92.53% test acc in 15.20 seconds with ReLU on all layers
+            trainer.train(25000, .020, 4);
             System.out.printf("Trained in %.2f second(s).\n", (System.nanoTime() - time) / 1000000000.0);
 
             // post-test

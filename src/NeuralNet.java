@@ -24,6 +24,12 @@ class NeuralNet {
 	private LossFunction lossFunc;
 	private LossFunctionPrime lossPrime;
 
+	// training optimizers
+	private boolean usingGradNoise;
+	private int updates; // the number of times a gradient step has been taken
+	private Map<Integer, double[][]> previousUpdate; // update vector used in the previous time step,
+	// or vector of 0's matching weights map dimensions, if the net has not undergone gradient descent
+
 	// whether or not to run heavy rep inv checks
 	private static final boolean DEBUG = false;
 	// whether or not to run rep inv checks at all
@@ -95,6 +101,7 @@ class NeuralNet {
 	 * specified sigmoid, and the sets its derivative to sigmoid prime for use during back propagation of error. Does the
 	 * same for a given loss function and its derivative, which will be used during error calculation and back propagation,
 	 * respectively.
+	 * todo add optimizer comments
 	 * Depth, input dimension, and output dimension are assumed to be greater than zero.
 	 * {@code activationFunc} and {@code activationPrime} are assumed to be non-null, {@code activationPrime} is assumed
 	 * to represent a continuous and differentiable function, and {@code activationPrime} is assumed to correctly express
@@ -111,11 +118,13 @@ class NeuralNet {
 	 * @param lastActivationPrime the derivative of the activation function to apply to the last layer during back propagation
 	 * @param lossFunc the loss function to apply during error evaluation
 	 * @param lossPrime the derivative of the loss function to apply during back propagation
+	 * @param usingNoise whether or not to add gradient noise during gradient updates
 	 */
 	NeuralNet(int inputDim, int outputDim, int hiddenLayerDim, int layers,
 			  ActivationFunction activationFunc, ActivationPrime activationPrime,
 			  ActivationFunction lastActivationFunc, ActivationPrime lastActivationPrime,
-			  LossFunction lossFunc, LossFunctionPrime lossPrime) {
+			  LossFunction lossFunc, LossFunctionPrime lossPrime,
+			  boolean usingNoise) {
 
 		// precondition checks
 		assert layers > 0 && inputDim > 0 && outputDim > 0 && hiddenLayerDim > 0;
@@ -142,6 +151,11 @@ class NeuralNet {
 		this.layers = layers;
 		neurons = new HashMap<>();
 		weights = new HashMap<>();
+
+		// helper init
+		this.usingGradNoise = usingNoise;
+		updates = 0;
+		previousUpdate = new HashMap<>();
 
 		// build
 		appendLayer(0, inputDim); // layer # 0
@@ -177,6 +191,7 @@ class NeuralNet {
 				}
 			}
 			weights.put(layerIndex - 1, newWeights);
+			previousUpdate.put(layerIndex - 1, new double[neurons.get(layerIndex - 1).length][dim]); // array of 0's
 		}
 		neurons.put(layerIndex, newNeurons);
 	}
@@ -373,14 +388,21 @@ class NeuralNet {
 		for (int i = 0; i < gradientAggregate.size(); i++) {
 			double[][] toAdjust = weights.get(i);
 			double[][] adjustBy = gradientAggregate.get(i);
+			double[][] prevAdjust = previousUpdate.get(i);
 			for (int j = 0; j < adjustBy.length; j++) {
 				for (int k = 0; k < adjustBy[0].length; k++) {
-					toAdjust[j][k] -= (step * adjustBy[j][k] / batchSize); // normalize by batch size, scale by step
-					// subtraction used since gradients represent steepest ascent of loss with respect to weights,
-					// so heading in opposite direction (subtracting gradient) is steepest descent of loss
+					double adj = -(step * adjustBy[j][k] / batchSize);
+					if (usingGradNoise) {
+						adj += Math.sqrt(random.nextGaussian() * step / Math.pow(1 + updates, 0.9));
+					}
+					// normalize by batch size, scale by step
+					toAdjust[j][k] += adj;
+					adjustBy[j][k] = adj; // store adjustment for learning optimization in next step
 				}
 			}
 		}
+		updates++;
+		previousUpdate = gradientAggregate;
 		checkRep();
 	}
 
@@ -407,6 +429,8 @@ class NeuralNet {
 	 */
 	private void checkRep() {
 		if (LIGHT) return;
+
+		// todo update checkrep, rep invariant, and abs func to match new optimizations
 
 		// basic assertions
 		assert layers > 0 && inputDim > 0 && outputDim > 0 && hiddenLayerDim > 0;
