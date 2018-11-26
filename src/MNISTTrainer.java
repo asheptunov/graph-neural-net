@@ -155,7 +155,7 @@ public class MNISTTrainer {
 	 * @param batchSize  the size of training batches to draw per gradient descent iteration
 	 */
 	public void train(int iterations, double stepSize, int batchSize, double momentum, boolean noise, boolean verbose) {
-		trainer.train(iterations, stepSize, batchSize, momentum, noise, observed, verbose ? new ProgressBar(12, iterations) : null);
+		trainer.train(iterations, stepSize, batchSize, momentum, noise, observed, verbose ? new ProgressBar(12, iterations, progress -> "▯") : null);
 	}
 
 	/**
@@ -240,7 +240,7 @@ public class MNISTTrainer {
 			double momentum = 0.9;
 			boolean noise = false;
 
-			ProgressBar pb = new ProgressBar(10, stepSizes.length);
+			ProgressBar pb = new ProgressBar(10, stepSizes.length, progress -> String.format("[%.2f%%] ", progress));
 			// sweep
 			for (double stepSize : stepSizes) {
 				MNISTTrainer trainer = new MNISTTrainer(hluDim, false);

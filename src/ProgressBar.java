@@ -17,18 +17,36 @@ class ProgressBar {
 	// current step number
 	private int step = 0;
 
+	private Ticker ticker;
+
 	// starting time
 	private long startTime;
+
+	/**
+	 * Represents a renderer of a single tick in the progress bar.
+	 */
+	interface Ticker {
+		/**
+		 * Returns a single tick of a progress bar given the current progress percentage.
+		 *
+		 * @param progress the progress percentage
+		 * @return the rendered tick
+		 */
+		String render(double progress);
+	}
 
 	/**
 	 * Creates a new progress bar with the given attributes
 	 *
 	 * @param ticks        the number of progress bar ticks displayed to the user
 	 * @param steps        the total number of logical steps in the process, >= ticks
+	 * @param tick         the rendering style for a given single tick
 	 */
-	ProgressBar(int ticks, int steps) {
+	ProgressBar(int ticks, int steps, Ticker tick) {
+		assert tick != null;
 		this.maxTicks = ticks;
 		this.maxSteps = steps;
+		this.ticker = tick;
 		stepsPerTick = steps / ticks;
 		start();
 	}
@@ -105,8 +123,7 @@ class ProgressBar {
 	 * Prints a single tick on the progress bar.
 	 */
 	private void displayTick() {
-		System.out.print("▯");
-//		System.out.printf("[%.1f%%] -> ", step * 100. / maxSteps);
+		System.out.print(ticker.render(step * 100.0 / maxSteps));
 	}
 
 	// whether or not steps have been completed
@@ -119,8 +136,8 @@ class ProgressBar {
 	void finish() {
 		if (!finished) {
 			finished = true;
-			System.out.printf("▯\nFinished in %.2f seconds\n", (System.nanoTime() - startTime) / 1000000000.0);
-//			System.out.printf("[100%%]\nFinished in %.2f seconds\n", (System.nanoTime() - startTime) / 1000000000.0);
+			System.out.print(ticker.render(100.0));
+			System.out.printf("\nFinished in %.2f seconds\n", (System.nanoTime() - startTime) / 1000000000.0);
 		}
 	}
 
