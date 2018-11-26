@@ -72,11 +72,11 @@ public class MNISTTrainer {
 		// create observer
 		PrintStream observer = null;
 		if (observed) {
-			long obsID = System.nanoTime() % 99999;
-			observer = new PrintStream(new File("obs/observer" + obsID + ".csv"));
-			System.out.println("Using observer " + obsID);
+			long logID = System.nanoTime() % 99999;
+			observer = new PrintStream(new File("logs/log" + logID + ".csv"));
+			System.out.println("Logging to " + logID);
 		} else {
-			System.out.println("Not using observer");
+			System.out.println("No logging"); // todo rename observing to logging
 		}
 
 		// initialize network
@@ -148,13 +148,14 @@ public class MNISTTrainer {
 	/**
 	 * Trains the neural network on the MNIST training set using a specified number of gradient descent steps of the
 	 * specified size, drawing a randomly selected batch of the specified size each time a step is performed.
+	 * todo add verbose description
 	 *
 	 * @param iterations the amount of gradient descent iterations to perform
 	 * @param stepSize   the scale factor for weight adjustment
 	 * @param batchSize  the size of training batches to draw per gradient descent iteration
 	 */
-	public void train(int iterations, double stepSize, int batchSize, double momentum, boolean noise) {
-		trainer.train(iterations, stepSize, batchSize, momentum, noise, observed);
+	public void train(int iterations, double stepSize, int batchSize, double momentum, boolean noise, boolean verbose) {
+		trainer.train(iterations, stepSize, batchSize, momentum, noise, observed, verbose ? new ProgressBar(12, iterations) : null);
 	}
 
 	/**
@@ -221,23 +222,52 @@ public class MNISTTrainer {
 
 	public static void main(String[] args) {
 		try {
-			// init
-            MNISTTrainer trainer = new MNISTTrainer(new int[]{16, 16, 16, 16}, false);
+			// init sweep logger
+			long logID = System.nanoTime() % 99999;
+			PrintStream log = new PrintStream(new File("logs/sweep" + logID + ".csv"));
+			System.out.println("Logging sweep to " + logID);
 
-            // pre-test
-            System.out.printf("\n%1.2f%% hit rate on training set before training.\n", trainer.testOnTrainingData(false) * 100.);
-            System.out.printf("%1.2f%% hit rate on test set before training.\n", trainer.testOnTestData(false) * 100.);
+			// sweep over 15 different step sizes
+			double[] stepSizes = new double[15];
+			stepSizes[0] = 0.1;
+			for (int i = 1; i < stepSizes.length; i++) {
+				stepSizes[i] = stepSizes[i - 1] * 0.875;
+			}
+
+			int[] hluDim = new int[]{300};
+			int iterations = 50000;
+			int batchSize = 4;
+			double momentum = 0.9;
+			boolean noise = false;
+
+			ProgressBar pb = new ProgressBar(10, stepSizes.length);
+			// sweep
+			for (double stepSize : stepSizes) {
+				MNISTTrainer trainer = new MNISTTrainer(hluDim, false);
+				trainer.train(iterations, stepSize, batchSize, momentum, noise, false);
+                log.print("[");
+                for (int dim : hluDim) {
+                    log.print(dim + "-");
+                }
+                log.print("],");
+                log.println(iterations + "," + batchSize + "," + momentum + "," + noise + "," + stepSize + "," + trainer.testOnTestData(false) * 100.);
+                pb.step();
+            }
+            pb.finish();
+
+			// init
+//            MNISTTrainer trainer = new MNISTTrainer(new int[]{300}, false);
+
+            // pre-train test
+//            System.out.printf("\n%1.2f%% hit rate on test set before training.\n", trainer.testOnTestData(false) * 100.);
 
             // train
-            System.out.println("\nTraining...");
-            long time = System.nanoTime();
-//            trainer.train(100000, .050, 1, 0, false); // 92.53% test acc in 15.20 seconds with ReLU on all layers
-            trainer.train(50000, .010, 4, 0.90, false);
-            System.out.printf("Trained in %.2f second(s).\n", (System.nanoTime() - time) / 1000000000.0);
+//            trainer.train(100000, .050, 1, 0, false, true); // 91% test acc in 16 seconds with ReLU on all layers, 16/16/16/16 HLU
+//            trainer.train(50000, .010, 4, 0.90, false, true); // 92% test acc in 30 seconds with ReLU on all layers, 16/16/16/16 HLU
+//            trainer.train(50000, .0025, 4, 0.90, false, true);
 
-            // post-test
-            System.out.printf("\n%1.2f%% hit rate on training set after training.\n", trainer.testOnTrainingData(false) * 100.);
-            System.out.printf("%1.2f%% hit rate on test set after training.\n", trainer.testOnTestData(false) * 100.);
+            // post-train test
+//            System.out.printf("\n%1.2f%% hit rate on test set after training.\n", trainer.testOnTestData(false) * 100.);
 
 		} catch (IOException e) {
 			e.printStackTrace();

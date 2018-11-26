@@ -51,7 +51,7 @@ class NeuralNetTrainer {
 	 * Trains the neural network using a specified number of gradient descent steps of the specified size, drawing a
 	 * randomly selected batch of the specified size each time a step is performed. Records intermittent validation
 	 * statistics to the observer stream if observing has been requested using {@code observed} and an observer exists
-	 * for this trainer.
+	 * for this trainer. todo add monitor description
 	 *
 	 * {@code iterations} and {@code stepSize} are assumed to be positive.
 	 * {@code batchSize} assumed to be positive and upper bounded by the total size of the input data.
@@ -63,7 +63,7 @@ class NeuralNetTrainer {
 	 * @param momentum   the momentum term
 	 * @param noise      whether or not to use gradient noise
 	 */
-	void train(int iterations, double stepSize, int batchSize, double momentum, boolean noise, boolean observed) {
+	void train(int iterations, double stepSize, int batchSize, double momentum, boolean noise, boolean observed, ProgressBar monitor) {
 		// precondition checks
 		assert iterations > 0 && stepSize > 0;
 		assert batchSize > 0 && batchSize < dataMaster.size();
@@ -71,15 +71,30 @@ class NeuralNetTrainer {
 		int validationSize = dataMaster.size() / 100 + 1; // 1% of data; at least 0
 		// do observer check once instead of every iteration to save time at tens of thousands of iterations
 		if (observed && observer != null) {
+            if (monitor != null) { // observed and progress monitored
+                for (int i = 0; i < iterations; i++) {
+                    net.gradientStep(sample(batchSize), stepSize, momentum, noise);
+                    observer.printf("%d,%.2f\n", i, validate(validationSize));
+                    monitor.step();
+                }
+                monitor.finish();
+            } else { // only observed
+                for (int i = 0; i < iterations; i++) {
+                    net.gradientStep(sample(batchSize), stepSize, momentum, noise);
+                    observer.printf("%d,%.2f\n", i, validate(validationSize));
+                }
+            }
+		} else if (monitor != null) { // only progress monitored
 			for (int i = 0; i < iterations; i++) {
 				net.gradientStep(sample(batchSize), stepSize, momentum, noise);
-				observer.printf("%d,%.2f\n", i, validate(validationSize));
+				monitor.step();
 			}
-		} else {
-			for (int i = 0; i < iterations; i++) {
-				net.gradientStep(sample(batchSize), stepSize, momentum, noise);
-			}
-		}
+			monitor.finish();
+		} else { // unobserved and unmonitored; fastest
+            for (int i = 0; i < iterations; i++) {
+                net.gradientStep(sample(batchSize), stepSize, momentum, noise);
+            }
+        }
 	}
 
 	/**
