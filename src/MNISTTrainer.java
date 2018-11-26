@@ -239,7 +239,9 @@ public class MNISTTrainer {
 			// 96% with 784-100-50-10, 200k iterations, 0.0075 step, 4 bs, 0.9 momentum, no noise; 7.3 mins
 			// 95% with 784-100-50-10, 100k iterations, 0.0100 step, 8 bs, 0.9 momentum, no noise; 7.2 mins
 			// 95% with 784-100-50-10, 50k iterations, 0.0125 step, 16 bs, 0.9 momentum, no noise; 6.7 mins
-			int[] hluDim = new int[]{100, 50};
+            // 96.13% with 784-100-50-10, 200k iterations, 0.0125 step, 16 bs, 0.9 momentum, no noise; 2 hours 30 mins
+            // 96% with 784-100-50-10, 200k iterations, 0.0125 step, 32 bs, 0.9 momentum, no noise; 2 hours 45 mins
+            int[] hluDim = new int[]{100, 50};
 			int iterations = 200000;
 			double stepSize = 0.0125;
 			int batchSize = 16;
