@@ -75,8 +75,6 @@ public class MNISTTrainer {
 			long logID = System.nanoTime() % 99999;
 			observer = new PrintStream(new File("logs/log" + logID + ".csv"));
 			System.out.println("Logging to " + logID);
-		} else {
-			System.out.println("No logging"); // todo rename observing to logging
 		}
 
 		// initialize network
@@ -222,38 +220,51 @@ public class MNISTTrainer {
 
 	public static void main(String[] args) {
 		try {
+			// todo make sweep not client side, requires resetting the net
 			// init sweep logger
-			long logID = System.nanoTime() % 99999;
-			PrintStream log = new PrintStream(new File("logs/sweep" + logID + ".csv"));
-			System.out.println("Logging sweep to " + logID);
+//			long logID = System.nanoTime() % 99999;
+//			PrintStream log = new PrintStream(new File("logs/sweep" + logID + ".csv"));
+//			System.out.println("Logging sweep to " + logID);
 
 			// sweep over 15 different step sizes
-			double[] stepSizes = new double[15];
-			stepSizes[0] = 0.1;
-			for (int i = 1; i < stepSizes.length; i++) {
-				stepSizes[i] = stepSizes[i - 1] * 0.875;
-			}
+//			double[] stepSizes = new double[1];
+//			stepSizes[0] = 0.001;
+//			for (int i = 1; i < stepSizes.length; i++) {
+//				stepSizes[i] = stepSizes[i - 1] * 0.875;
+//			}
 
-			int[] hluDim = new int[]{300};
-			int iterations = 50000;
-			int batchSize = 4;
+
+			// 94.5% with 784-100-50-10, 100k iterations, 0.0042 step, 2 bs, 0.9 momentum, no noise; 2 mins
+			// 95% with 784-100-50-10, 100k iterations, 0.0075 step, 4 bs, 0.9 momentum, no noise; 4 mins
+			// 96% with 784-100-50-10, 200k iterations, 0.0075 step, 4 bs, 0.9 momentum, no noise; 7.3 mins
+			// 95% with 784-100-50-10, 100k iterations, 0.0100 step, 8 bs, 0.9 momentum, no noise; 7.2 mins
+			// 95% with 784-100-50-10, 50k iterations, 0.0125 step, 16 bs, 0.9 momentum, no noise; 6.7 mins
+			int[] hluDim = new int[]{100, 50};
+			int iterations = 200000;
+			double stepSize = 0.0125;
+			int batchSize = 16;
 			double momentum = 0.9;
 			boolean noise = false;
 
-			ProgressBar pb = new ProgressBar(10, stepSizes.length, progress -> String.format("[%.2f%%] ", progress));
+			MNISTTrainer trainer = new MNISTTrainer(hluDim, true);
+			trainer.train(iterations, stepSize, batchSize, momentum, noise, true);
+			System.out.printf("%.2f%% test accuracy", trainer.testOnTestData(false) * 100.0);
+
+//			ProgressBar pb = new ProgressBar(10, stepSizes.length, progress -> String.format("[%.2f%%] ", progress));
 			// sweep
-			for (double stepSize : stepSizes) {
-				MNISTTrainer trainer = new MNISTTrainer(hluDim, false);
-				trainer.train(iterations, stepSize, batchSize, momentum, noise, false);
-                log.print("[");
-                for (int dim : hluDim) {
-                    log.print(dim + "-");
-                }
-                log.print("],");
-                log.println(iterations + "," + batchSize + "," + momentum + "," + noise + "," + stepSize + "," + trainer.testOnTestData(false) * 100.);
-                pb.step();
-            }
-            pb.finish();
+//			for (double stepSize : stepSizes) {
+//			MNISTTrainer trainer = new MNISTTrainer(hluDim, false);
+//				trainer.train(iterations, stepSize, batchSize, momentum, noise, true);
+//                log.print("[");
+//                for (int dim : hluDim) {
+//                    log.print(dim + "-");
+//                }
+//                log.print("10],");
+//                log.println(iterations + "," + batchSize + "," + momentum + "," + noise + "," + stepSize + "," + trainer.testOnTestData(false) * 100.0);
+//                pb.step();
+//                pb.step();
+//            }
+//            pb.finish();
 
 			// init
 //            MNISTTrainer trainer = new MNISTTrainer(new int[]{300}, false);
