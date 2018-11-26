@@ -60,8 +60,10 @@ class NeuralNetTrainer {
 	 * @param stepSize   the scale factor for weight adjustment
 	 * @param batchSize  the size of training batches to draw per gradient descent iteration
 	 * @param observed   whether or not to output intermittent statistics during training
+	 * @param momentum   the momentum term
+	 * @param noise      whether or not to use gradient noise
 	 */
-	void train(int iterations, double stepSize, int batchSize, boolean observed) {
+	void train(int iterations, double stepSize, int batchSize, double momentum, boolean noise, boolean observed) {
 		// precondition checks
 		assert iterations > 0 && stepSize > 0;
 		assert batchSize > 0 && batchSize < dataMaster.size();
@@ -70,12 +72,12 @@ class NeuralNetTrainer {
 		// do observer check once instead of every iteration to save time at tens of thousands of iterations
 		if (observed && observer != null) {
 			for (int i = 0; i < iterations; i++) {
-				net.gradientStep(sample(batchSize), stepSize);
+				net.gradientStep(sample(batchSize), stepSize, momentum, noise);
 				observer.printf("%d,%.2f\n", i, validate(validationSize));
 			}
 		} else {
 			for (int i = 0; i < iterations; i++) {
-				net.gradientStep(sample(batchSize), stepSize);
+				net.gradientStep(sample(batchSize), stepSize, momentum, noise);
 			}
 		}
 	}

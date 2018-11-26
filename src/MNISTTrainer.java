@@ -86,10 +86,9 @@ public class MNISTTrainer {
 				a -> (a > 0) ? a : 0.01 * a, // leaky ReLU
 				a -> (a <= 0.0) ? 0.01 : 1.0, // step func (derivative of differentiability-adjusted leaky ReLU)
 				a -> (a > 0) ? a : 0.01 * a,
-				a -> (a <= 0.0) ? 0.01 : 1.0, // logistic sigmoid derivative
+				a -> (a <= 0.0) ? 0.01 : 1.0,
 				(c, e) -> 0.5 * (e - c) * (e - c), // weighted diff of squares
-				(c, e) -> (c - e), // weighted diff of squares derivative
-				true); // use noise
+				(c, e) -> (c - e)); // weighted diff of squares derivative);
 		trainer = new NeuralNetTrainer(trainingPartition, net, observer);
 
 //		a -> 1 / (1 + Math.exp(-a)), // logistic function (sigmoid)
@@ -156,8 +155,8 @@ public class MNISTTrainer {
 	 * @param stepSize   the scale factor for weight adjustment
 	 * @param batchSize  the size of training batches to draw per gradient descent iteration
 	 */
-	public void train(int iterations, double stepSize, int batchSize) {
-		trainer.train(iterations, stepSize, batchSize, observed);
+	public void train(int iterations, double stepSize, int batchSize, double momentum, boolean noise) {
+		trainer.train(iterations, stepSize, batchSize, momentum, noise, observed);
 	}
 
 	/**
@@ -225,7 +224,7 @@ public class MNISTTrainer {
 	public static void main(String[] args) {
 		try {
 			// init
-            MNISTTrainer trainer = new MNISTTrainer(4, 16, false);
+            MNISTTrainer trainer = new MNISTTrainer(4, 16, true);
 
             // pre-test
             System.out.printf("\n%1.2f%% hit rate on training set before training.\n", trainer.testOnTrainingData(false) * 100.);
@@ -234,8 +233,8 @@ public class MNISTTrainer {
             // train
             System.out.println("\nTraining...");
             long time = System.nanoTime();
-//            trainer.train(100000, .050, 1); // 92.53% test acc in 15.20 seconds with ReLU on all layers
-            trainer.train(25000, .020, 4);
+//            trainer.train(100000, .050, 1, 0, false); // 92.53% test acc in 15.20 seconds with ReLU on all layers
+            trainer.train(100000, .020, 2, 0.90, false);
             System.out.printf("Trained in %.2f second(s).\n", (System.nanoTime() - time) / 1000000000.0);
 
             // post-test
