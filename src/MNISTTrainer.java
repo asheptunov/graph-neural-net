@@ -21,15 +21,13 @@ public class MNISTTrainer {
 	 * Creates a new MNIST trainer, importing the training and testing partitions of the MNIST dataset, and starting
 	 * with a blank neural net of the specified dimensions for testing.
 	 * Hidden layer count is assumed to be non-negative, and hidden layer depth is assumed to be 0.
+     * todo update description
 	 *
-	 * @param hiddenLayerCount the number of hidden layers to use in the net
-	 * @param hiddenLayerDim the dimension of hidden layers in the net
 	 * @param observed whether or not training progress should be assessed and written in real-time
 	 * @throws IOException if an I/O error has occurred
 	 */
-	public MNISTTrainer(int hiddenLayerCount, int hiddenLayerDim, boolean observed) throws IOException {
-		assert hiddenLayerCount >= 0;
-		assert hiddenLayerDim > 0;
+	public MNISTTrainer(int[] hiddenLayerDims, boolean observed) throws IOException {
+		assert hiddenLayerDims != null;
 		this.observed = observed;
 		// import MNIST
 		FileInputStream trainingLabels = new FileInputStream(new File("data/train-labels-idx1-ubyte"));
@@ -49,12 +47,12 @@ public class MNISTTrainer {
 		assert trainingLabelSamples == trainingImageSamples;
 		int trainingImageBytes = readInt(trainingImages) * readInt(trainingImages);
 		assert trainingImageBytes == 784;
-		ProgressBar pb1 = new ProgressBar(15, trainingLabelSamples);
+//		ProgressBar pb1 = new ProgressBar(15, trainingLabelSamples);
 		for (int i = 0; i < trainingLabelSamples; i++) {
 			trainingPartition.put(readImage(trainingImages, trainingImageBytes), readLabel(trainingLabels));
-			pb1.step();
+//			pb1.step();
 		}
-		pb1.finish();
+//		pb1.finish();
 
 		// parse testOnTestData database
 		assert readInt(testLabels) == 2049;
@@ -64,35 +62,35 @@ public class MNISTTrainer {
 		assert testLabelSamples == testImageSamples;
 		int testImageBytes = readInt(testImages) * readInt(testImages);
 		assert trainingImageBytes == testImageBytes; // ensure same dim as training database
-		ProgressBar pb2 = new ProgressBar(10, testImageSamples);
+//		ProgressBar pb2 = new ProgressBar(10, testImageSamples);
 		for (int i = 0; i < testImageSamples; i++) {
 			testingPartition.put(readImage(testImages, testImageBytes), testLabels.read());
-			pb2.step();
+//			pb2.step();
 		}
-		pb2.finish();
+//		pb2.finish();
 
 		// create observer
 		PrintStream observer = null;
 		if (observed) {
 			long obsID = System.nanoTime() % 99999;
 			observer = new PrintStream(new File("obs/observer" + obsID + ".csv"));
-			System.out.println("\nUsing observer " + obsID);
+			System.out.println("Using observer " + obsID);
 		} else {
-			System.out.println("\nNot using observer");
+			System.out.println("Not using observer");
 		}
 
 		// initialize network
-		net = new NeuralNet(trainingImageBytes, 10, hiddenLayerDim, 2 + hiddenLayerCount,
-				a -> (a > 0) ? a : 0.01 * a, // leaky ReLU
-				a -> (a <= 0.0) ? 0.01 : 1.0, // step func (derivative of differentiability-adjusted leaky ReLU)
-				a -> (a > 0) ? a : 0.01 * a,
-				a -> (a <= 0.0) ? 0.01 : 1.0,
-				(c, e) -> 0.5 * (e - c) * (e - c), // weighted diff of squares
-				(c, e) -> (c - e)); // weighted diff of squares derivative);
-		trainer = new NeuralNetTrainer(trainingPartition, net, observer);
+        net = new NeuralNet(trainingImageBytes, 10, hiddenLayerDims,
+                a -> (a > 0) ? a : 0.01 * a, // leaky ReLU
+                a -> (a <= 0.0) ? 0.01 : 1.0, // step func (derivative of differentiability-adjusted leaky ReLU)
+                a -> (a > 0) ? a : 0.01 * a,
+                a -> (a <= 0.0) ? 0.01 : 1.0,
+                (c, e) -> 0.5 * (e - c) * (e - c), // weighted diff of squares
+                (c, e) -> (c - e)); // weighted diff of squares derivative);
+        trainer = new NeuralNetTrainer(trainingPartition, net, observer);
 
 //		a -> 1 / (1 + Math.exp(-a)), // logistic function (sigmoid)
-//				a -> (1 / (1 + Math.exp(-a))) * (1 - (1 / (1 + Math.exp(-a)))), // logistic sigmoid derivative
+//		a -> (1 / (1 + Math.exp(-a))) * (1 - (1 / (1 + Math.exp(-a)))), // logistic sigmoid derivative
 	}
 
 	/**
@@ -224,7 +222,7 @@ public class MNISTTrainer {
 	public static void main(String[] args) {
 		try {
 			// init
-            MNISTTrainer trainer = new MNISTTrainer(4, 16, true);
+            MNISTTrainer trainer = new MNISTTrainer(new int[]{16, 16, 16, 16}, false);
 
             // pre-test
             System.out.printf("\n%1.2f%% hit rate on training set before training.\n", trainer.testOnTrainingData(false) * 100.);
@@ -234,7 +232,7 @@ public class MNISTTrainer {
             System.out.println("\nTraining...");
             long time = System.nanoTime();
 //            trainer.train(100000, .050, 1, 0, false); // 92.53% test acc in 15.20 seconds with ReLU on all layers
-            trainer.train(100000, .020, 2, 0.90, false);
+            trainer.train(50000, .010, 4, 0.90, false);
             System.out.printf("Trained in %.2f second(s).\n", (System.nanoTime() - time) / 1000000000.0);
 
             // post-test

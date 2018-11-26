@@ -11,7 +11,7 @@ class NeuralNet {
 	// structure
 	private int layers; // # of neuron layers
 	private int inputDim, outputDim; // # of neurons in input and output layer, respectively
-	private int hiddenLayerDim; // # of neurons in arbitrary hidden layer
+    private int[] hiddenLayerDims; // todo add full layer depth count optimizer
 	private Map<Integer, double[]> neurons; // neuron sums (unactivated values)
 	private Map<Integer, double[][]> weights; // weights
 
@@ -105,11 +105,13 @@ class NeuralNet {
 	 * to represent a continuous and differentiable function, and {@code activationPrime} is assumed to correctly express
 	 * the derivative of the given activation function. The same criteria are assumed for the {@code lastActivationFunc}
 	 * and {@code lastActivationPrime}, as well as for {@code lossFunc} and {@code lossPrime}.
+     * todo hidden dim description
+     *
+     * todo require at least 2 layers total
 	 *
 	 * @param inputDim the dimension of input data
 	 * @param outputDim the dimension of output data
-	 * @param hiddenLayerDim the dimension of an arbitrary hidden layer
-	 * @param layers how many total layers the net must have
+     * @param hiddenLayerDims the dimensions for each hidden layer
 	 * @param activationFunc the activation function to apply to all but the last layer during propagation
 	 * @param activationPrime the derivative of the activation function to apply to all but the last layer during back propagation
 	 * @param lastActivationFunc the activation function to apply to the last layer during propagation
@@ -117,16 +119,14 @@ class NeuralNet {
 	 * @param lossFunc the loss function to apply during error evaluation
 	 * @param lossPrime the derivative of the loss function to apply during back propagation
 	 */
-	NeuralNet(int inputDim, int outputDim, int hiddenLayerDim, int layers,
+	NeuralNet(int inputDim, int outputDim, int[] hiddenLayerDims,
 			  ActivationFunction activationFunc, ActivationPrime activationPrime,
 			  ActivationFunction lastActivationFunc, ActivationPrime lastActivationPrime,
 			  LossFunction lossFunc, LossFunctionPrime lossPrime) {
 
 		// precondition checks
-		assert layers > 0 && inputDim > 0 && outputDim > 0 && hiddenLayerDim > 0;
-		assert (layers != 1) || (inputDim == outputDim); // equiv to (layers == 1) -> (inputDim == outputDim)
-
-		// non-null checks
+        assert inputDim > 0 && outputDim > 0;
+        assert hiddenLayerDims != null;
 		assert activationFunc != null && activationPrime != null;
 		assert lastActivationFunc != null && lastActivationPrime != null;
 		assert lossFunc != null && lossPrime != null;
@@ -143,8 +143,8 @@ class NeuralNet {
 		// structure init
 		this.inputDim = inputDim;
 		this.outputDim = outputDim;
-		this.hiddenLayerDim = (layers > 2) ? hiddenLayerDim : -1; // hidden dim is -1 if no hidden layers
-		this.layers = layers;
+		this.layers = 2 + hiddenLayerDims.length;
+		this.hiddenLayerDims = hiddenLayerDims;
 		neurons = new HashMap<>();
 		weights = new HashMap<>();
 
@@ -153,12 +153,11 @@ class NeuralNet {
 		previousUpdate = new HashMap<>();
 
 		// build
-		appendLayer(0, inputDim); // layer # 0
-		int i; // need i outside of for scope
-		for (i = layers - 1; i > 1; i--) {
-			appendLayer(layers - i, hiddenLayerDim);
-		}
-		if (i == 1) appendLayer(layers - 1, outputDim); // layer # (layers - 1); equivalent to last layer
+        appendLayer(0, inputDim);
+        for (int i = 1; i < layers - 1; i++) {
+            appendLayer(i, hiddenLayerDims[i - 1]);
+        }
+        appendLayer(layers - 1, outputDim);
 
 		checkRep();
 	}
@@ -174,8 +173,8 @@ class NeuralNet {
 	 */
 	private void appendLayer(int layerIndex, int dim) {
 		// precondition checks
-		assert dim > 0;
-		assert layerIndex >= 0 && layerIndex < layers;
+        assert layerIndex >= 0 && layerIndex < layers;
+        assert dim > 0;
 
 		double[] newNeurons = new double[dim]; // all values automatically 0.0
 		if (layerIndex > 0) { // we are adding a hidden layer or output layer; add weights
@@ -431,8 +430,8 @@ class NeuralNet {
 
 		// todo update checkrep, rep invariant, and abs func to match new optimizations
 
-		// basic assertions
-		assert layers > 0 && inputDim > 0 && outputDim > 0 && hiddenLayerDim > 0;
+        assert layers > 0 && inputDim > 0 && outputDim > 0;
+        // basic assertions
 		assert neurons != null && weights != null;
 		assert random != null && activationFunc != null && activationPrime != null && lossFunc != null && lossPrime != null;
 		assert neurons.size() == layers && weights.size() == layers - 1;
@@ -444,10 +443,8 @@ class NeuralNet {
 				assert weights.get(i).length == neurons.get(i).length;
 				assert weights.get(i)[0].length == neurons.get(i + 1).length;
 			}
-			if (layers > 2) {
-				for (int i = 1; i < layers - 1; i++) {
-					assert neurons.get(i).length == hiddenLayerDim;
-				}
+			for (int i = 1; i < layers - 1; i++) {
+			    assert neurons.get(i).length == hiddenLayerDims[i - 1];
 			}
 		}
 	}
