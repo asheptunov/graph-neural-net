@@ -1,5 +1,3 @@
-import org.jetbrains.annotations.NotNull;
-
 import java.io.PrintStream;
 import java.util.*;
 
@@ -11,7 +9,7 @@ import java.util.*;
  * @since November 2018
  */
 class NeuralNetTrainer {
-	private NeuralNet net;
+	private SoftmaxCrossEntropyNeuralNet net;
 	private Map<double[], double[]> dataMaster;
 	private List<double[]> dataSampler;
 	private Random random;
@@ -27,9 +25,9 @@ class NeuralNetTrainer {
 	 * DO NOT PIPE IN VALIDATION OR TESTING PARTITIONS. ONLY USE TRAINING PARTITION.
 	 *
 	 * @param data training data map from input vectors to expected output vectors
-	 * @param net the network to train
+	 * @param net  the network to train
 	 */
-	NeuralNetTrainer(Map<double[], double[]> data, NeuralNet net, PrintStream observer) {
+	NeuralNetTrainer(Map<double[], double[]> data, SoftmaxCrossEntropyNeuralNet net, PrintStream observer) {
 		// precondition checks
 		assert data != null;
 		assert net != null;
@@ -52,7 +50,7 @@ class NeuralNetTrainer {
 	 * randomly selected batch of the specified size each time a step is performed. Records intermittent validation
 	 * statistics to the observer stream if observing has been requested using {@code observed} and an observer exists
 	 * for this trainer. todo add monitor description
-	 *
+	 * <p>
 	 * {@code iterations} and {@code stepSize} are assumed to be positive.
 	 * {@code batchSize} assumed to be positive and upper bounded by the total size of the input data.
 	 *
@@ -71,19 +69,19 @@ class NeuralNetTrainer {
 		int validationSize = dataMaster.size() / 100 + 1; // 1% of data; at least 0
 		// do observer check once instead of every iteration to save time at tens of thousands of iterations
 		if (observed && observer != null) {
-            if (monitor != null) { // observed and progress monitored
-                for (int i = 0; i < iterations; i++) {
-                    net.gradientStep(sample(batchSize), stepSize, momentum, noise);
-                    observer.printf("%d,%.2f\n", i, validate(validationSize));
-                    monitor.step();
-                }
-                monitor.finish();
-            } else { // only observed
-                for (int i = 0; i < iterations; i++) {
-                    net.gradientStep(sample(batchSize), stepSize, momentum, noise);
-                    observer.printf("%d,%.2f\n", i, validate(validationSize));
-                }
-            }
+			if (monitor != null) { // observed and progress monitored
+				for (int i = 0; i < iterations; i++) {
+					net.gradientStep(sample(batchSize), stepSize, momentum, noise);
+					observer.printf("%d,%.2f\n", i, validate(validationSize));
+					monitor.step();
+				}
+				monitor.finish();
+			} else { // only observed
+				for (int i = 0; i < iterations; i++) {
+					net.gradientStep(sample(batchSize), stepSize, momentum, noise);
+					observer.printf("%d,%.2f\n", i, validate(validationSize));
+				}
+			}
 		} else if (monitor != null) { // only progress monitored
 			for (int i = 0; i < iterations; i++) {
 				net.gradientStep(sample(batchSize), stepSize, momentum, noise);
@@ -91,10 +89,10 @@ class NeuralNetTrainer {
 			}
 			monitor.finish();
 		} else { // unobserved and unmonitored; fastest
-            for (int i = 0; i < iterations; i++) {
-                net.gradientStep(sample(batchSize), stepSize, momentum, noise);
-            }
-        }
+			for (int i = 0; i < iterations; i++) {
+				net.gradientStep(sample(batchSize), stepSize, momentum, noise);
+			}
+		}
 	}
 
 	/**
@@ -127,7 +125,7 @@ class NeuralNetTrainer {
 	 * @return the net's estimated average loss over given data
 	 */
 	@Deprecated
-	private double validate(@NotNull Map<double[], double[]> testData) {
+	private double validate(Map<double[], double[]> testData) {
 		// precondition checks
 		assert !testData.isEmpty();
 

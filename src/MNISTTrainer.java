@@ -10,7 +10,7 @@ import java.util.Map;
  */
 public class MNISTTrainer {
 	// delegate instead of subclassing
-	private NeuralNet net;
+	private SoftmaxCrossEntropyNeuralNet net;
 	private NeuralNetTrainer trainer;
 	private Map<double[], double[]> trainingPartition;
 	private Map<double[], Integer> testingPartition;
@@ -78,17 +78,10 @@ public class MNISTTrainer {
 		}
 
 		// initialize network
-        net = new NeuralNet(trainingImageBytes, 10, hiddenLayerDims,
+        net = new SoftmaxCrossEntropyNeuralNet(trainingImageBytes, 10, hiddenLayerDims,
                 a -> (a > 0) ? a : 0.01 * a, // leaky ReLU
-                a -> (a <= 0.0) ? 0.01 : 1.0, // step func (derivative of differentiability-adjusted leaky ReLU)
-                a -> (a > 0) ? a : 0.01 * a,
-                a -> (a <= 0.0) ? 0.01 : 1.0,
-                (c, e) -> 0.5 * (e - c) * (e - c), // weighted diff of squares
-                (c, e) -> (c - e)); // weighted diff of squares derivative);
+                a -> (a <= 0.0) ? 0.01 : 1.0); // step func (derivative of differentiability-adjusted leaky ReLU)
         trainer = new NeuralNetTrainer(trainingPartition, net, observer);
-
-//		a -> 1 / (1 + Math.exp(-a)), // logistic function (sigmoid)
-//		a -> (1 / (1 + Math.exp(-a))) * (1 - (1 / (1 + Math.exp(-a)))), // logistic sigmoid derivative
 	}
 
 	/**
@@ -152,17 +145,16 @@ public class MNISTTrainer {
 	 * @param stepSize   the scale factor for weight adjustment
 	 * @param batchSize  the size of training batches to draw per gradient descent iteration
 	 */
-	public void train(int iterations, double stepSize, int batchSize, double momentum, boolean noise, boolean verbose) {
+	void train(int iterations, double stepSize, int batchSize, double momentum, boolean noise, boolean verbose) {
 		trainer.train(iterations, stepSize, batchSize, momentum, noise, observed, verbose ? new ProgressBar(12, iterations, progress -> "▯") : null);
 	}
 
 	/**
 	 * Tests the neural network on the MNIST testing set and returns the classification hit rate.
 	 *
-	 * @param verbose whether or not to write status to the console in real time
 	 * @return the hit rate for the neural net over the testing set
 	 */
-	public double testOnTestData(boolean verbose) {
+	double testOnTestData() {
 		double hits = 0;
 		for (double[] input : testingPartition.keySet()) {
 			int expected = testingPartition.get(input);
@@ -172,14 +164,6 @@ public class MNISTTrainer {
 			for (int i = 0; i < 10; i++) {
 				if (outputVector[i] >= outputVector[actual]) actual = i;
 			}
-			if (verbose) {
-				System.out.print("vector: ");
-				for (int i = 0; i < outputVector.length; i++) {
-					System.out.printf("%.5f ", outputVector[i]);
-				}
-				System.out.println("\nchoice: " + actual);
-				System.out.println("expected: "+ expected);
-			}
 			if (actual == expected) hits++;
 		}
 		return hits / testingPartition.size();
@@ -188,10 +172,9 @@ public class MNISTTrainer {
 	/**
 	 * Tests the neural network on the MNIST training set and returns the classification hit rate.
 	 *
-	 * @param verbose whether or not to write status to the console in real time
 	 * @return the hit rate for the neural net over the training set
 	 */
-	public double testOnTrainingData(boolean verbose) {
+	public double testOnTrainingData() {
 		double hits = 0;
 		for (double[] input : trainingPartition.keySet()) {
 			double[] expectedRaw = trainingPartition.get(input);
@@ -204,14 +187,6 @@ public class MNISTTrainer {
 			assert outputVector.length == 10;
 			for (int i = 0; i < 10; i++) {
 				if (outputVector[i] >= outputVector[actual]) actual = i;
-			}
-			if (verbose) {
-				System.out.print("vector: ");
-				for (double v : outputVector) {
-					System.out.printf("%.5f ", v);
-				}
-				System.out.println("\nchoice: " + actual);
-				System.out.println("expected: "+ expected);
 			}
 			if (actual == expected) hits++;
 		}
@@ -241,16 +216,17 @@ public class MNISTTrainer {
 			// 95% with 784-100-50-10, 50k iterations, 0.0125 step, 16 bs, 0.9 momentum, no noise; 6.7 mins
             // 96.13% with 784-100-50-10, 200k iterations, 0.0125 step, 16 bs, 0.9 momentum, no noise; 2 hours 30 mins
             // 96% with 784-100-50-10, 200k iterations, 0.0125 step, 32 bs, 0.9 momentum, no noise; 2 hours 45 mins
-            int[] hluDim = new int[]{100, 50};
+            int[] hluDim = new int[]{300, 100};
 			int iterations = 200000;
-			double stepSize = 0.0125;
+			double stepSize = 0.01;
 			int batchSize = 16;
 			double momentum = 0.9;
 			boolean noise = false;
 
 			MNISTTrainer trainer = new MNISTTrainer(hluDim, true);
 			trainer.train(iterations, stepSize, batchSize, momentum, noise, true);
-			System.out.printf("%.2f%% test accuracy", trainer.testOnTestData(false) * 100.0);
+			System.out.printf("%.2f%% test accuracy\n", trainer.testOnTestData() * 100.0);
+			System.out.printf("%.2f%% training accuracy\n", trainer.testOnTrainingData() * 100.0);
 
 //			ProgressBar pb = new ProgressBar(10, stepSizes.length, progress -> String.format("[%.2f%%] ", progress));
 			// sweep
