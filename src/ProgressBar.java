@@ -136,7 +136,6 @@ class ProgressBar {
 	void finish() {
 		if (!finished) {
 			finished = true;
-			System.out.print(ticker.render(100.0));
 			System.out.printf("\nFinished in %.2f seconds\n", (System.nanoTime() - startTime) / 1000000000.0);
 		}
 	}

@@ -14,8 +14,6 @@ class NeuralNetTrainer {
 	private List<double[]> dataSampler;
 	private Random random;
 
-	private PrintStream observer;
-
 	/**
 	 * Creates a new trainer for the specified neural network, designating the given data map as the training data for
 	 * the net. Registers the specified stream (or null if no observer is needed) as the observer for outputting
@@ -27,7 +25,7 @@ class NeuralNetTrainer {
 	 * @param data training data map from input vectors to expected output vectors
 	 * @param net  the network to train
 	 */
-	NeuralNetTrainer(Map<double[], double[]> data, SoftmaxCrossEntropyNeuralNet net, PrintStream observer) {
+	NeuralNetTrainer(Map<double[], double[]> data, SoftmaxCrossEntropyNeuralNet net) {
 		// precondition checks
 		assert data != null;
 		assert net != null;
@@ -41,7 +39,6 @@ class NeuralNetTrainer {
 		}
 		refillSampler();
 		this.net = net;
-		this.observer = observer; // null is ok
 		random = new Random(1);
 	}
 
@@ -49,7 +46,7 @@ class NeuralNetTrainer {
 	 * Trains the neural network using a specified number of gradient descent steps of the specified size, drawing a
 	 * randomly selected batch of the specified size each time a step is performed. Records intermittent validation
 	 * statistics to the observer stream if observing has been requested using {@code observed} and an observer exists
-	 * for this trainer. todo add monitor description
+	 * for this trainer. todo add monitor, observer description
 	 * <p>
 	 * {@code iterations} and {@code stepSize} are assumed to be positive.
 	 * {@code batchSize} assumed to be positive and upper bounded by the total size of the input data.
@@ -57,18 +54,17 @@ class NeuralNetTrainer {
 	 * @param iterations the amount of gradient descent iterations to perform
 	 * @param stepSize   the scale factor for weight adjustment
 	 * @param batchSize  the size of training batches to draw per gradient descent iteration
-	 * @param observed   whether or not to output intermittent statistics during training
 	 * @param momentum   the momentum term
 	 * @param noise      whether or not to use gradient noise
 	 */
-	void train(int iterations, double stepSize, int batchSize, double momentum, boolean noise, boolean observed, ProgressBar monitor) {
+	void train(int iterations, double stepSize, int batchSize, double momentum, boolean noise, ProgressBar monitor, PrintStream observer) {
 		// precondition checks
 		assert iterations > 0 && stepSize > 0;
 		assert batchSize > 0 && batchSize < dataMaster.size();
 
 		int validationSize = dataMaster.size() / 100 + 1; // 1% of data; at least 0
 		// do observer check once instead of every iteration to save time at tens of thousands of iterations
-		if (observed && observer != null) {
+		if (observer != null) {
 			if (monitor != null) { // observed and progress monitored
 				for (int i = 0; i < iterations; i++) {
 					net.gradientStep(sample(batchSize), stepSize, momentum, noise);
