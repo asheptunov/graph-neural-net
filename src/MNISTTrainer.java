@@ -9,7 +9,7 @@ import java.util.Map;
  * @since November 2018
  */
 class MNISTTrainer {
-    private SoftmaxCrossEntropyNeuralNet net;
+    private NeuralNet net;
     private NeuralNetTrainer trainer; // trainer delegate
     private Map<double[], double[]> trainingPartition; // optimized for training (output is distribution)
     private Map<double[], Integer> testingPartition; // optimized for testing (output is classification)
@@ -17,12 +17,13 @@ class MNISTTrainer {
 
     /**
      * Creates a new MNIST trainer, importing the training and testing partitions of the MNIST dataset, and starting
-     * with a blank neural net of the specified hidden layer dimension vector.
-     * Hidden layer count vector is assumed to be non-null, non-empty and contain non-negative values.
-     * // todo remove hiddenlayerdim input, mnisttrainer should be net-oblivious; refactor to net interface and just take a net
+     * with the given neural net.
+     * Neural net assumed to be non-null, have input dimension 784, and output dimension 10.
+     *
+     * @param net the neural net to train
      * @throws IOException if an I/O error has occurred
      */
-    private MNISTTrainer(int[] hiddenLayerDims) throws IOException {
+    private MNISTTrainer(NeuralNet net) throws IOException {
         // import MNIST
         FileInputStream trainingLabels = new FileInputStream(new File("data/train-labels-idx1-ubyte"));
         FileInputStream trainingImages = new FileInputStream(new File("data/train-images-idx3-ubyte"));
@@ -59,11 +60,9 @@ class MNISTTrainer {
 
         trainingLog = new PrintStream(new File("logs/trainLog.csv"));
 
-        // initialize network // todo this should not happen here lol
-        net = new SoftmaxCrossEntropyNeuralNet(trainingImageBytes, 10, hiddenLayerDims,
-                a -> (a > 0) ? a : 0.01 * a, // leaky ReLU
-                a -> (a <= 0.0) ? 0.01 : 1.0); // step func (derivative of differentiability-adjusted leaky ReLU)
-        trainer = new NeuralNetTrainer(trainingPartition, net);
+        assert net != null;
+        this.net = net;
+        this.trainer = new NeuralNetTrainer(trainingPartition, net);
     }
 
     /**
@@ -238,8 +237,12 @@ class MNISTTrainer {
             int batchSize = 16;
             double momentum = 0.9;
             boolean noise = false;
+
             // init
-            MNISTTrainer trainer = new MNISTTrainer(hluDim);
+            NeuralNet net = new SoftmaxCrossEntropyNeuralNet(784, 10, hluDim,
+                    a -> (a > 0) ? a : 0.01 * a, // leaky ReLU
+                    a -> (a <= 0.0) ? 0.01 : 1.0); // step func (derivative of differentiability-adjusted leaky ReLU)
+            MNISTTrainer trainer = new MNISTTrainer(net);
 
             // train
             trainer.train(iterations, stepSize, batchSize, momentum, noise, true, false);

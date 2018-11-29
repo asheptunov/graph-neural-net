@@ -2,16 +2,16 @@ import java.util.*;
 
 /**
  * Represents a neural network with some type of neurons, capable of propagating input, back propagating error, and
- * performing batch gradient descent to train the network. // todo update all descriptions for hardcoded softmax cross entropy
+ * performing batch gradient descent to train the network.
  *
  * @author Andriy Sheptunov
  * @since November 2018
  */
-class SoftmaxCrossEntropyNeuralNet {
+public class GeneralNeuralNet implements NeuralNet {
 	// structure
 	private int layers; // # of neuron layers
 	private int inputDim, outputDim; // # of neurons in input and output layer, respectively
-	private int[] hiddenLayerDims; // todo add full layer depth count optimizer
+    private int[] hiddenLayerDims; // todo add full layer depth count optimizer
 	private Map<Integer, double[]> neurons; // neuron sums (unactivated values)
 	private Map<Integer, double[][]> weights; // weights
 
@@ -19,6 +19,10 @@ class SoftmaxCrossEntropyNeuralNet {
 	private Random random;
 	private ActivationFunction activationFunc; // activation function for all but last layer
 	private ActivationPrime activationPrime; // activation derivative for all but last layer
+	private ActivationFunction lastActivationFunc; // activation function for last layer
+	private ActivationPrime lastActivationPrime; // activation derivative for last layer
+	private LossFunction lossFunc;
+	private LossFunctionPrime lossPrime;
 
 	// training optimizers
 	private int time; // the number of times a gradient step has been taken
@@ -34,7 +38,7 @@ class SoftmaxCrossEntropyNeuralNet {
 	private static final boolean TRUST = true;
 
 	// Abstraction function:
-	// A NeuralNet represents the ADT of a neural network with layers # of layers and a layers - 1 # of weight layers.
+	// A GeneralNeuralNet represents the ADT of a neural network with layers # of layers and a layers - 1 # of weight layers.
 	// These correspond to the lengths of arrays neurons and weights, respectively. The net has an input
 	// dimension of inputDim, and an output dimension of outputDim. These correspond to the lengths of the first
 	// and last elements in array neurons, respectively.
@@ -101,27 +105,39 @@ class SoftmaxCrossEntropyNeuralNet {
 	 * to represent a continuous and differentiable function, and {@code activationPrime} is assumed to correctly express
 	 * the derivative of the given activation function. The same criteria are assumed for the {@code lastActivationFunc}
 	 * and {@code lastActivationPrime}, as well as for {@code lossFunc} and {@code lossPrime}.
-	 * todo hidden dim description
-	 *
-	 * todo require at least 2 layers total
+     * todo hidden dim description
+     *
+     * todo require at least 2 layers total
 	 *
 	 * @param inputDim the dimension of input data
 	 * @param outputDim the dimension of output data
-	 * @param hiddenLayerDims the dimensions for each hidden layer
+     * @param hiddenLayerDims the dimensions for each hidden layer
 	 * @param activationFunc the activation function to apply to all but the last layer during propagation
 	 * @param activationPrime the derivative of the activation function to apply to all but the last layer during back propagation
+	 * @param lastActivationFunc the activation function to apply to the last layer during propagation
+	 * @param lastActivationPrime the derivative of the activation function to apply to the last layer during back propagation
+	 * @param lossFunc the loss function to apply during error evaluation
+	 * @param lossPrime the derivative of the loss function to apply during back propagation
 	 */
-	SoftmaxCrossEntropyNeuralNet(int inputDim, int outputDim, int[] hiddenLayerDims,
-	          ActivationFunction activationFunc, ActivationPrime activationPrime) {
+	public GeneralNeuralNet(int inputDim, int outputDim, int[] hiddenLayerDims,
+					 ActivationFunction activationFunc, ActivationPrime activationPrime,
+					 ActivationFunction lastActivationFunc, ActivationPrime lastActivationPrime,
+					 LossFunction lossFunc, LossFunctionPrime lossPrime) {
 
 		// precondition checks
-		assert inputDim > 0 && outputDim > 0;
-		assert hiddenLayerDims != null;
+        assert inputDim > 0 && outputDim > 0;
+        assert hiddenLayerDims != null;
 		assert activationFunc != null && activationPrime != null;
+		assert lastActivationFunc != null && lastActivationPrime != null;
+		assert lossFunc != null && lossPrime != null;
 
 		// function init
 		this.activationFunc = activationFunc;
 		this.activationPrime = activationPrime;
+		this.lastActivationFunc = lastActivationFunc;
+		this.lastActivationPrime = lastActivationPrime;
+		this.lossFunc = lossFunc;
+		this.lossPrime = lossPrime;
 		random = new Random(1);
 
 		// structure init
@@ -137,11 +153,11 @@ class SoftmaxCrossEntropyNeuralNet {
 		previousUpdate = new HashMap<>();
 
 		// build
-		appendLayer(0, inputDim);
-		for (int i = 1; i < layers - 1; i++) {
-			appendLayer(i, hiddenLayerDims[i - 1]);
-		}
-		appendLayer(layers - 1, outputDim);
+        appendLayer(0, inputDim);
+        for (int i = 1; i < layers - 1; i++) {
+            appendLayer(i, hiddenLayerDims[i - 1]);
+        }
+        appendLayer(layers - 1, outputDim);
 
 		checkRep();
 	}
@@ -157,8 +173,8 @@ class SoftmaxCrossEntropyNeuralNet {
 	 */
 	private void appendLayer(int layerIndex, int dim) {
 		// precondition checks
-		assert layerIndex >= 0 && layerIndex < layers;
-		assert dim > 0;
+        assert layerIndex >= 0 && layerIndex < layers;
+        assert dim > 0;
 
 		double[] newNeurons = new double[dim]; // all values automatically 0.0
 		if (layerIndex > 0) { // we are adding a hidden layer or output layer; add weights
@@ -181,7 +197,7 @@ class SoftmaxCrossEntropyNeuralNet {
 	 * @param input the input vector to propagate
 	 * @return the output vector
 	 */
-	double[] propagate(double[] input) {
+	public double[] propagate(double[] input) {
 		assert input != null;
 		assert input.length == inputDim;
 		if (TRUST) {
@@ -213,8 +229,12 @@ class SoftmaxCrossEntropyNeuralNet {
 
 		}
 		double[] outputNeurons = neurons.get(layers - 1);
+		double[] outputActivations = new double[outputDim];
+		for (int i = 0; i < outputDim; i++) {
+			outputActivations[i] = lastActivationFunc.func(outputNeurons[i]);
+		}
 		checkRep();
-		return softmaxActivate(outputNeurons);
+		return outputActivations;
 	}
 
 	/**
@@ -227,7 +247,7 @@ class SoftmaxCrossEntropyNeuralNet {
 	 * @param expected the corresponding expected output vector
 	 * @return the calculated loss vector
 	 */
-	double calculateLoss(double[] input, double[] expected) {
+	public double calculateLoss(double[] input, double[] expected) {
 		// precondition checks
 		assert input != null && expected != null;
 		assert input.length == inputDim && expected.length == outputDim;
@@ -235,8 +255,7 @@ class SoftmaxCrossEntropyNeuralNet {
 		double[] calculatedActivations = propagate(input);
 		double loss = 0;
 		for (int i = 0; i < outputDim; i++) {
-			assert calculatedActivations[i] > 0.0; // this would cause log problems, and shouldn't happen with softmax
-			loss -= expected[i] * Math.log(calculatedActivations[i]);
+			loss += lossFunc.loss(calculatedActivations[i], expected[i]);
 		}
 		checkRep();
 		return loss;
@@ -256,7 +275,7 @@ class SoftmaxCrossEntropyNeuralNet {
 	 * @param expected      the corresponding expected output vector
 	 * @return a matrix of weight derivatives
 	 */
-	private Map<Integer, double[][]> calculateWeightGradient(double[] input, double[] expected) {
+	public Map<Integer, double[][]> calculateWeightGradient(double[] input, double[] expected) {
 		// precondition checks
 		assert input != null && expected != null;
 		assert input.length == inputDim && expected.length == outputDim;
@@ -264,7 +283,7 @@ class SoftmaxCrossEntropyNeuralNet {
 		if (layers < 2) {
 			return new HashMap<>(); // no weights to adjust, return empty list
 		}
-		double[] outputActivations = propagate(input);
+		propagate(input); // neurons now represent sums before activation
 		Map<Integer, double[][]> dEdw = new HashMap<>(weights.size());
 		Map<Integer, double[]> dEdNet = new HashMap<>(layers);
 		double[][] last_dEdw = new double[neurons.get(layers - 2).length][outputDim];
@@ -277,7 +296,8 @@ class SoftmaxCrossEntropyNeuralNet {
 		double[] iNeurons = neurons.get(layers - 2); // second-to-last layer
 		// w_ij now conceptually points from second-to-last layer to last layer
 		for (int j = 0; j < outputDim; j++) {
-			last_dEdNet[j] = outputActivations[j] - expected[j]; // this is unique for softmax + cross-entropy combo
+			double jActivation = lastActivationFunc.func(jNeurons[j]); // use last layer activation function since j is outer layer
+			last_dEdNet[j] = lossPrime.func(jActivation, expected[j]) * lastActivationPrime.func(jNeurons[j]); // use last layer prime
 		}
 		// doing this nested loop independent of the j loop eliminates costly column-major mem access
 		for (int i = 0; i < iNeurons.length; i++) {
@@ -332,8 +352,7 @@ class SoftmaxCrossEntropyNeuralNet {
 	 * @param momentum the momentum term
 	 * @param noise whether or not to apply gaussian noise
 	 */
-	void gradientStep(Map<double[], double[]> batch, double step,
-	                  double momentum, boolean noise) {
+	public void gradientStep(Map<double[], double[]> batch, double step, double momentum, boolean noise) {
 		// precondition checks
 		assert batch != null;
 		assert !batch.isEmpty();
@@ -384,42 +403,12 @@ class SoftmaxCrossEntropyNeuralNet {
 		checkRep();
 	}
 
-
-	/**
-	 * Activates the given input vector, interpreting it as an unactivated layer of competing neurons in the net. Returns
-	 * the calculated output vector.
-	 * Input vector is assumed to be non-null and non-empty.
-	 *
-	 * @param input the input vector
-	 * @return the output vector
-	 */
-	private double[] softmaxActivate(double[] input) {
-		assert input != null;
-		int l = input.length;
-		assert l > 0;
-		double max = input[0];
-		for (int i = 1; i < l; i++) {
-			if (input[i] > max) max = input[i];
-		}
-		double sum = 0;
-		double[] output = new double[l];
-		for (int i = 0; i < l; i++) {
-			double term = Math.exp(input[i]);
-			output[i] = term;
-			sum += term;
-		}
-		for (int i = 0; i < l; i++) {
-			output[i] /= sum;
-		}
-		return output;
-	}
-
 	/**
 	 * Returns the input dimension of the neural net.
 	 *
 	 * @return the input dimension
 	 */
-	int getInputDim() {
+	public int getInputDim() {
 		return inputDim;
 	}
 
@@ -428,7 +417,7 @@ class SoftmaxCrossEntropyNeuralNet {
 	 *
 	 * @return the output dimension
 	 */
-	int getOutputDim() {
+	public int getOutputDim() {
 		return outputDim;
 	}
 
@@ -440,10 +429,10 @@ class SoftmaxCrossEntropyNeuralNet {
 
 		// todo update checkrep, rep invariant, and abs func to match new optimizations
 
-		assert layers > 0 && inputDim > 0 && outputDim > 0;
-		// basic assertions
+        assert layers > 0 && inputDim > 0 && outputDim > 0;
+        // basic assertions
 		assert neurons != null && weights != null;
-		assert random != null && activationFunc != null && activationPrime != null;
+		assert random != null && activationFunc != null && activationPrime != null && lossFunc != null && lossPrime != null;
 		assert neurons.size() == layers && weights.size() == layers - 1;
 		assert neurons.get(0).length == inputDim && neurons.get(layers - 1).length == outputDim;
 
@@ -454,7 +443,7 @@ class SoftmaxCrossEntropyNeuralNet {
 				assert weights.get(i)[0].length == neurons.get(i + 1).length;
 			}
 			for (int i = 1; i < layers - 1; i++) {
-				assert neurons.get(i).length == hiddenLayerDims[i - 1];
+			    assert neurons.get(i).length == hiddenLayerDims[i - 1];
 			}
 		}
 	}

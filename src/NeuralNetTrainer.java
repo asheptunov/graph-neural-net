@@ -2,14 +2,14 @@ import java.io.PrintStream;
 import java.util.*;
 
 /**
- * Represents a machine learning module that trains a neural network by performing iterative stochastic batch gradient
- * descent, and outputs training statistics for progress monitoring.
+ * Represents a machine learning module that trains a neural network by performing iterative mini-batch gradient descent,
+ * and outputs training statistics for progress monitoring.
  *
  * @author Andriy Sheptunov
  * @since November 2018
  */
 class NeuralNetTrainer {
-	private SoftmaxCrossEntropyNeuralNet net;
+	private NeuralNet net;
 	private Map<double[], double[]> dataMaster;
 	private List<double[]> dataSampler;
 	private Random random;
@@ -25,7 +25,7 @@ class NeuralNetTrainer {
 	 * @param data training data map from input vectors to expected output vectors
 	 * @param net  the network to train
 	 */
-	NeuralNetTrainer(Map<double[], double[]> data, SoftmaxCrossEntropyNeuralNet net) {
+	NeuralNetTrainer(Map<double[], double[]> data, NeuralNet net) {
 		// precondition checks
 		assert data != null;
 		assert net != null;
@@ -115,7 +115,7 @@ class NeuralNetTrainer {
 	/**
 	 * Tests and returns the net's estimated average loss using specified input to expected (training / testing) data
 	 * mappings.
-	 * {@code testData} assumed to be non-null and non-empty.
+	 * Test data assumed to be non-null and non-empty.
 	 *
 	 * @param testData the data over which to validate
 	 * @return the net's estimated average loss over given data
@@ -135,7 +135,7 @@ class NeuralNetTrainer {
 	/**
 	 * Randomly samples and returns a mini batch of training points from the total set of training data, without
 	 * replacement. However, once the total data set is exhausted, re-draw from the original set will occur.
-	 * {@code batchSize} assumed to be positive and upper bounded by the total size of the trainer's training data.
+	 * Batch size assumed to be positive and upper bounded by the total size of the trainer's training data.
 	 *
 	 * @param batchSize the number of data points to draw
 	 * @return the generated mini batch
@@ -159,6 +159,7 @@ class NeuralNetTrainer {
 
 	/**
 	 * Fills the sampler with a copy of the master's input (key) set. Sampler will be emptied of previous values.
+     * Equivalent to starting a new training epoch.
 	 */
 	private void refillSampler() {
 		dataSampler.clear();
