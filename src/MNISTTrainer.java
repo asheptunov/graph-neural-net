@@ -58,7 +58,7 @@ class MNISTTrainer {
             testingPartition.put(readImage(testImages, testImageBytes), testLabels.read());
         }
 
-        trainingLog = new PrintStream(new File("logs/trainLog.csv"));
+        trainingLog = new PrintStream(new FileOutputStream("logs/trainLog.csv", true));
 
         assert net != null;
         this.net = net;
@@ -220,19 +220,11 @@ class MNISTTrainer {
 
     public static void main(String[] args) {
         try {
-            // 94.5% with 784-100-50-10, 100k iterations, 0.0042 step, 2 bs, 0.9 momentum, no noise; 2 mins
-            // 95% with 784-100-50-10, 100k iterations, 0.0075 step, 4 bs, 0.9 momentum, no noise; 4 mins
-            // 96% with 784-100-50-10, 200k iterations, 0.0075 step, 4 bs, 0.9 momentum, no noise; 7.3 mins
-            // 95% with 784-100-50-10, 100k iterations, 0.0100 step, 8 bs, 0.9 momentum, no noise; 7.2 mins
-            // 95% with 784-100-50-10, 50k iterations, 0.0125 step, 16 bs, 0.9 momentum, no noise; 6.7 mins
-            // 96.13% with 784-100-50-10, 200k iterations, 0.0125 step, 16 bs, 0.9 momentum, no noise; 2 hours 30 mins
-            // 96% with 784-100-50-10, 200k iterations, 0.0125 step, 32 bs, 0.9 momentum, no noise; 2 hours 45 mins
-
             // net dim
             int[] netDim = new int[]{784, 300, 100, 10};
             // hyper-parameters
             int iterations = 100000;
-            double stepSize = 0.01;
+            double stepSize = 0.0125;
             int batchSize = 16;
             double momentum = 0.9;
             boolean noise = false;
