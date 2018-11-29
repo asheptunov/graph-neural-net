@@ -1,8 +1,9 @@
 import java.util.*;
 
 /**
- * Represents a neural network with some type of neurons, capable of propagating input, back propagating error, and
- * performing batch gradient descent to train the network.
+ * Represents a neural network with a separately configurable neuron activation function for inner and outer layers, and
+ * a configurable loss function. This neural net is capable of propagating input, back propagating error, and performing
+ * iterative mini-batch gradient descent to train.
  *
  * @author Andriy Sheptunov
  * @since November 2018
@@ -17,8 +18,8 @@ public class GeneralNeuralNet implements NeuralNet {
 
 	// functions for math
 	private Random random;
-	private ActivationFunction activationFunc; // activation function for all but last layer
-	private ActivationPrime activationPrime; // activation derivative for all but last layer
+	private ActivationFunction innerActivationFunc; // activation function for all but last layer
+	private ActivationPrime innerActivationPrime; // activation derivative for all but last layer
 	private ActivationFunction lastActivationFunc; // activation function for last layer
 	private ActivationPrime lastActivationPrime; // activation derivative for last layer
 	private LossFunction lossFunc;
@@ -58,7 +59,7 @@ public class GeneralNeuralNet implements NeuralNet {
 
 	// Representation invariant:
 	// layers, inputDim, outputDim, hiddenLayerDim > 0
-	// neurons, weights, random, activationFunc, activationPrime, lossFunc, lossPrime != null
+	// neurons, weights, random, innerActivationFunc, innerActivationPrime, lossFunc, lossPrime != null
 	// neurons[...], weights[...], weights[...][...] != null
 	// neurons.length == layers
 	// weights.length == layers - 1
@@ -92,44 +93,38 @@ public class GeneralNeuralNet implements NeuralNet {
 	//
 
 	/**
-	 * Constructs a new neural net with some input, output, and hidden layer dimensions, and a given layer count.
-	 * A layers 1 neural net will perform no modifications on input and output data, and is assumed to have equal
-	 * input and output dimensions. All edges will have random edge weights ranging from 0.0-1.0, and all neurons will
-	 * have data set to 0.0. If hidden layers exist, all will have the same specified dimension. All layers that aren't
-	 * the input or output layer will be hidden layers. Sets the function to use during forward propagation to the
-	 * specified sigmoid, and the sets its derivative to sigmoid prime for use during back propagation of error. Does the
-	 * same for a given loss function and its derivative, which will be used during error calculation and back propagation,
-	 * respectively.
-	 * Depth, input dimension, and output dimension are assumed to be greater than zero.
-	 * {@code activationFunc} and {@code activationPrime} are assumed to be non-null, {@code activationPrime} is assumed
-	 * to represent a continuous and differentiable function, and {@code activationPrime} is assumed to correctly express
-	 * the derivative of the given activation function. The same criteria are assumed for the {@code lastActivationFunc}
-	 * and {@code lastActivationPrime}, as well as for {@code lossFunc} and {@code lossPrime}.
-     * todo hidden dim description
-     *
-     * todo require at least 2 layers total
+	 * Constructs a new neural net from some dimension vector, which will correspond in order with the resulting layer
+	 * dimensions. Layers will be fully connected, and have random edge weights ranging from 0.0-1.0. All neurons will
+	 * have data set to 0.0. Sets the specified activation function to use during forward propagation on the inner layers,
+	 * as well as the specified activation function to use on the last layer. Sets both function's derivatives as
+	 * specified. Sets the loss function and its derivative as specified.
+	 * Layer dimension vector is assumed to be non-null, non-empty, and contain at least 2 positive entries.
+	 * All activation functions, their derivatives, the loss function and its derivative are assumed to be non-null and
+	 * continuous. Activation and loss functions are assumed to be differentiable, and their derivatives are assumed to
+	 * be correctly expressed.
 	 *
-	 * @param activationFunc the activation function to apply to all but the last layer during propagation
-	 * @param activationPrime the derivative of the activation function to apply to all but the last layer during back propagation
-	 * @param lastActivationFunc the activation function to apply to the last layer during propagation
-	 * @param lastActivationPrime the derivative of the activation function to apply to the last layer during back propagation
-	 * @param lossFunc the loss function to apply during error evaluation
-	 * @param lossPrime the derivative of the loss function to apply during back propagation
+	 * @param layerDims the dimension vector for layers in the net
+	 * @param innerActivationFunc the activation function for inner layers
+	 * @param innerActivationPrime the derivative of the inner activation function
+	 * @param lastActivationFunc the activation function for the output layer
+	 * @param lastActivationPrime the derivative of the output activation function
+	 * @param lossFunc the loss function
+	 * @param lossPrime the derivative of the loss function
 	 */
 	public GeneralNeuralNet(int[] layerDims,
-					 ActivationFunction activationFunc, ActivationPrime activationPrime,
+					 ActivationFunction innerActivationFunc, ActivationPrime innerActivationPrime,
 					 ActivationFunction lastActivationFunc, ActivationPrime lastActivationPrime,
 					 LossFunction lossFunc, LossFunctionPrime lossPrime) {
 
 		// precondition checks
 		assert layerDims != null && layerDims.length >= 2;
-		assert activationFunc != null && activationPrime != null;
+		assert innerActivationFunc != null && innerActivationPrime != null;
 		assert lastActivationFunc != null && lastActivationPrime != null;
 		assert lossFunc != null && lossPrime != null;
 
 		// function init
-		this.activationFunc = activationFunc;
-		this.activationPrime = activationPrime;
+		this.innerActivationFunc = innerActivationFunc;
+		this.innerActivationPrime = innerActivationPrime;
 		this.lastActivationFunc = lastActivationFunc;
 		this.lastActivationPrime = lastActivationPrime;
 		this.lossFunc = lossFunc;
@@ -185,11 +180,10 @@ public class GeneralNeuralNet implements NeuralNet {
 	}
 
 	/**
-	 * Propagates the input vector down the layers of the neural net, and returns the output after propagation.
-	 * Input vector is assumed to be non-null, and its dimension is assumed to match the net's input dimension.
+	 * {@inheritDoc}
 	 *
-	 * @param input the input vector to propagate
-	 * @return the output vector
+	 * @param input the input vector
+	 * @return {@inheritDoc}
 	 */
 	public double[] propagate(double[] input) {
 		assert input != null;
@@ -212,7 +206,7 @@ public class GeneralNeuralNet implements NeuralNet {
 			}
 			double[] previousActivations = new double[previousNeurons.length]; // save time by calculating activations once
 			for (int i = 0; i < previousNeurons.length; i++) {
-				previousActivations[i] = activationFunc.func(previousNeurons[i]);
+				previousActivations[i] = innerActivationFunc.func(previousNeurons[i]);
 			}
 			for (int i = 0; i < previousActivations.length; i++) {
 				for (int j = 0; j < currentNeurons.length; j++) {
@@ -232,14 +226,11 @@ public class GeneralNeuralNet implements NeuralNet {
 	}
 
 	/**
-	 * Calculates and returns a loss for a given input set by forward propagating the input, comparing it to the
-	 * provided expected output and applying the net's loss function per output component, and aggregating the components.
-	 * Assumes {@code input} is non-null and has same dimension as the net's input dimension.
-	 * Assumes the {@code expected} is non-null and has the same dimension as the net's output dimension.
+	 * {@inheritDoc}
 	 *
-	 * @param input    a single vector of input data
-	 * @param expected the corresponding expected output vector
-	 * @return the calculated loss vector
+	 * @param input    {@inheritDoc}
+	 * @param expected {@inheritDoc}
+	 * @return
 	 */
 	public double calculateLoss(double[] input, double[] expected) {
 		// precondition checks
@@ -256,18 +247,11 @@ public class GeneralNeuralNet implements NeuralNet {
 	}
 
 	/**
-	 * Calculates and returns a gradient representing dL/dw, or the gradient of the loss (error) with respect to all the
-	 * weights in the net. Output list will be of a dimension one less than the net's dimension; output.get(n) will
-	 * represent the dL/dw for each weight between layer n and layer n+1 in the net; output.get(n)[i] will represent all
-	 * the weights starting at neuron i in layer n; output.get(n)[i][j] will represent the weight from the ith neuron in
-	 * layer n to the jth weight in layer n+1.
-	 * {@code input} and {@code expected} are assumed to be non-null.
-	 * {@code input} dimension must match the input dimension of the net; {@code expected} dimension must match the output
-	 * dimension of the net.
+	 * {@inheritDoc}
 	 *
-	 * @param input         a single vector of input / training data
-	 * @param expected      the corresponding expected output vector
-	 * @return a matrix of weight derivatives
+	 * @param input    the input vector
+	 * @param expected the corresponding expected output vector
+	 * @return {@inheritDoc}
 	 */
 	public Map<Integer, double[][]> calculateWeightGradient(double[] input, double[] expected) {
 		// precondition checks
@@ -295,7 +279,7 @@ public class GeneralNeuralNet implements NeuralNet {
 		}
 		// doing this nested loop independent of the j loop eliminates costly column-major mem access
 		for (int i = 0; i < iNeurons.length; i++) {
-			double iActivation = activationFunc.func(iNeurons[i]); // use normal activation function since i is not last layer
+			double iActivation = innerActivationFunc.func(iNeurons[i]); // use normal activation function since i is not last layer
 			for (int j = 0; j < jNeurons.length; j++) {
 				last_dEdw[i][j] = last_dEdNet[j] * iActivation;
 			}
@@ -318,11 +302,11 @@ public class GeneralNeuralNet implements NeuralNet {
 				for (int k = 0; k < dEdNet_k.length; k++) {
 					sum += weights_jk[j][k] * dEdNet_k[k];
 				}
-				dEdNet_j[j] = sum * activationPrime.func(jNeurons[j]);
+				dEdNet_j[j] = sum * innerActivationPrime.func(jNeurons[j]);
 			}
 			for (int i = 0; i < iNeurons.length; i++) {
 				for (int j = 0; j < jNeurons.length; j++) {
-					dEdw_ij[i][j] = dEdNet_j[j] * activationFunc.func(iNeurons[i]);
+					dEdw_ij[i][j] = dEdNet_j[j] * innerActivationFunc.func(iNeurons[i]);
 				}
 			}
 		}
@@ -331,20 +315,12 @@ public class GeneralNeuralNet implements NeuralNet {
 	}
 
 	/**
-	 * Performs a single step of normalized gradient descent using the given batch of input -> expected output vector
-	 * mappings. Weight gradients calculated for each mapping will be aggregated and normalized by the batch size, and
-	 * all weights will be adjusted directly proportional to the given step size. Large {@code step} values will perform
-	 * coarser gradient descent and large quantities of gradient steps with large step size may cause the net to diverge.
-	 * Input vectors in {@code batch} are all assumed to match the input dimension of the net.
-	 * Expected output vectors in {@code batch} are assumed to match output dimensions of the net.
-	 * {@code batch} is assumed to be non-null and non-empty.
-	 * {@code step} is assumed to be positive.
-	 * todo add momentum term and noise description
+	 * {@inheritDoc}
 	 *
-	 * @param batch a map of input vectors to their expected output vectors
-	 * @param step  the multiplier for weight adjustments
-	 * @param momentum the momentum term
-	 * @param noise whether or not to apply gaussian noise
+	 * @param batch    the batch of input vectors mapped to expected output vectors
+	 * @param step     the step size; higher values will make coarser updates
+	 * @param momentum the fraction of the previous gradient step to add
+	 * @param noise    whether or not to add gaussian noise to weight updates
 	 */
 	public void gradientStep(Map<double[], double[]> batch, double step, double momentum, boolean noise) {
 		// precondition checks
@@ -398,18 +374,18 @@ public class GeneralNeuralNet implements NeuralNet {
 	}
 
 	/**
-	 * Returns the input dimension of the neural net.
+	 * {@inheritDoc}
 	 *
-	 * @return the input dimension
+	 * @return {@inheritDoc}
 	 */
 	public int getInputDim() {
 		return inputDim;
 	}
 
 	/**
-	 * Returns the output dimension of the neural net.
+	 * {@inheritDoc}
 	 *
-	 * @return the output dimension
+	 * @return {@inheritDoc}
 	 */
 	public int getOutputDim() {
 		return outputDim;
@@ -426,7 +402,7 @@ public class GeneralNeuralNet implements NeuralNet {
         assert layers > 0 && inputDim > 0 && outputDim > 0;
         // basic assertions
 		assert neurons != null && weights != null;
-		assert random != null && activationFunc != null && activationPrime != null && lossFunc != null && lossPrime != null;
+		assert random != null && innerActivationFunc != null && innerActivationPrime != null && lossFunc != null && lossPrime != null;
 		assert neurons.size() == layers && weights.size() == layers - 1;
 		assert neurons.get(0).length == inputDim && neurons.get(layers - 1).length == outputDim;
 
