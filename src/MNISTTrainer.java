@@ -199,7 +199,7 @@ class MNISTTrainer {
     /**
      * Logs the result of testing a neural net defined by specified parameters to a file.
      *
-     * @param hluDim      the hidden layer dimensions of the neural net
+     * @param netDim      the dimensions of the neural net layers
      * @param iterations  the number of iterations in training
      * @param stepSize    the step size in training
      * @param batchSize   the mini-batch size in training
@@ -208,13 +208,12 @@ class MNISTTrainer {
      * @param trainingAcc the training set hit accuracy after training
      * @param testAcc     the test set hit accuracy after training
      */
-    private void logTest(int[] hluDim, int iterations, double stepSize, int batchSize, double momentum, boolean noise, double trainingAcc, double testAcc) {
-        trainingLog.print("784");
-        for (int i = 0; i < hluDim.length; i++) {
-            trainingLog.print("-" + hluDim[i]);
+    private void logTest(int[] netDim, int iterations, double stepSize, int batchSize, double momentum, boolean noise, double trainingAcc, double testAcc) {
+        trainingLog.print(netDim[0]);
+        for (int i = 1; i < netDim.length; i++) {
+            trainingLog.print("-" + netDim[i]);
         }
-        trainingLog.print("-10,");
-        trainingLog.printf("%d,%.5f,%d,%.3f,", iterations, stepSize, batchSize, momentum);
+        trainingLog.printf(",%d,%.5f,%d,%.3f,", iterations, stepSize, batchSize, momentum);
         trainingLog.print(noise + ",");
         trainingLog.printf("%.5f,%.5f\n", trainingAcc, testAcc);
     }
@@ -230,7 +229,7 @@ class MNISTTrainer {
             // 96% with 784-100-50-10, 200k iterations, 0.0125 step, 32 bs, 0.9 momentum, no noise; 2 hours 45 mins
 
             // net dim
-            int[] hluDim = new int[]{300, 100};
+            int[] netDim = new int[]{784, 300, 100, 10};
             // hyper-parameters
             int iterations = 100000;
             double stepSize = 0.01;
@@ -239,7 +238,7 @@ class MNISTTrainer {
             boolean noise = false;
 
             // init
-            NeuralNet net = new SoftmaxCrossEntropyNeuralNet(784, 10, hluDim,
+            NeuralNet net = new SoftmaxCrossEntropyNeuralNet(netDim,
                     a -> (a > 0) ? a : 0.01 * a, // leaky ReLU
                     a -> (a <= 0.0) ? 0.01 : 1.0); // step func (derivative of differentiability-adjusted leaky ReLU)
             MNISTTrainer trainer = new MNISTTrainer(net);
@@ -247,7 +246,7 @@ class MNISTTrainer {
             // train
             trainer.train(iterations, stepSize, batchSize, momentum, noise, true, false);
             // log
-            trainer.logTest(hluDim, iterations, stepSize, batchSize, momentum, noise, trainer.testOnTrainingData(), trainer.testOnTestData());
+            trainer.logTest(netDim, iterations, stepSize, batchSize, momentum, noise, trainer.testOnTrainingData(), trainer.testOnTestData());
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -11,7 +11,7 @@ public class SoftmaxCrossEntropyNeuralNet implements NeuralNet {
     // structure
     private int layers; // # of neuron layers
     private int inputDim, outputDim; // # of neurons in input and output layer, respectively
-    private int[] hiddenLayerDims; // todo add full layer depth count optimizer
+    private int[] layerDims;
     private Map<Integer, double[]> neurons; // neuron sums (unactivated values)
     private Map<Integer, double[][]> weights; // weights
 
@@ -105,30 +105,25 @@ public class SoftmaxCrossEntropyNeuralNet implements NeuralNet {
      *
      * todo require at least 2 layers total
      *
-     * @param inputDim the dimension of input data
-     * @param outputDim the dimension of output data
-     * @param hiddenLayerDims the dimensions for each hidden layer
+     * @param layerDims the dimensions for each hidden layer
      * @param activationFunc the activation function to apply to all but the last layer during propagation
      * @param activationPrime the derivative of the activation function to apply to all but the last layer during back propagation
      */
-    public SoftmaxCrossEntropyNeuralNet(int inputDim, int outputDim, int[] hiddenLayerDims,
-                                        ActivationFunction activationFunc, ActivationPrime activationPrime) {
-
-        // precondition checks
-        assert inputDim > 0 && outputDim > 0;
-        assert hiddenLayerDims != null;
+    SoftmaxCrossEntropyNeuralNet(int[] layerDims, ActivationFunction activationFunc, ActivationPrime activationPrime) {
+        // non-null checks
+        assert layerDims != null && layerDims.length >= 2;
         assert activationFunc != null && activationPrime != null;
 
         // function init
         this.activationFunc = activationFunc;
         this.activationPrime = activationPrime;
-        random = new Random(1);
+        random = new Random(1); // seed for repeatability
 
         // structure init
-        this.inputDim = inputDim;
-        this.outputDim = outputDim;
-        this.layers = 2 + hiddenLayerDims.length;
-        this.hiddenLayerDims = hiddenLayerDims;
+        this.layers = layerDims.length;
+        this.inputDim = layerDims[0];
+        this.outputDim = layerDims[layerDims.length - 1];
+        this.layerDims = layerDims;
         neurons = new HashMap<>();
         weights = new HashMap<>();
 
@@ -137,11 +132,9 @@ public class SoftmaxCrossEntropyNeuralNet implements NeuralNet {
         previousUpdate = new HashMap<>();
 
         // build
-        appendLayer(0, inputDim);
-        for (int i = 1; i < layers - 1; i++) {
-            appendLayer(i, hiddenLayerDims[i - 1]);
+        for (int i = 0; i < layers; i++) {
+            appendLayer(i, layerDims[i]);
         }
-        appendLayer(layers - 1, outputDim);
 
         checkRep();
     }
@@ -452,8 +445,8 @@ public class SoftmaxCrossEntropyNeuralNet implements NeuralNet {
                 assert weights.get(i).length == neurons.get(i).length;
                 assert weights.get(i)[0].length == neurons.get(i + 1).length;
             }
-            for (int i = 1; i < layers - 1; i++) {
-                assert neurons.get(i).length == hiddenLayerDims[i - 1];
+            for (int i = 0; i < layers; i++) {
+                assert neurons.get(i).length == layerDims[i];
             }
         }
     }
