@@ -7,6 +7,7 @@ implemented from scratch in Java.
 This network was trained and tested on the [MNIST](http://yann.lecun.com/exdb/mnist/) dataset.
 
 784-100-50-10, Softmax, Cross-entropy: 98.598% training acc, 96.680% test acc
+
 784-300-100-10, Softmax, Cross-entropy: 100.000% training acc, 97.960% test acc
 
 Training on consumer hardware for comparable acc is generally slow (5+ minutes).
