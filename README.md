@@ -10,7 +10,7 @@ This network was trained and tested on the [MNIST](http://yann.lecun.com/exdb/mn
 
 784-300-100-10, Softmax, Cross-entropy: 100.000% training acc, 97.960% test acc
 
-Training on consumer hardware for comparable acc is generally slow (5+ minutes).
+Training on consumer hardware for comparable acc is generally slow (5+ minutes) due to full connectivity and serial design.
 
 ## Usage
 
@@ -30,4 +30,5 @@ When using the `MNISTTrainer` in its current configuration, training runs will b
 
 # Creators
 Full implementation by Andriy Sheptunov
+
 Most of the math by Andriy Sheptunov, the rest thanks to [Wikipedia](https://en.wikipedia.org/wiki/Backpropagation).
